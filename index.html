@@ -1,0 +1,535 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1" />
+<title>Daily Non-Negs Tasks</title>
+<style>
+  :root{
+    --bg:#f5f7f8; --card:#ffffff; --muted:#6b7280; --accent:#4c5055; --accent-2:#2f3336;
+    --danger:#d9534f;
+    font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
+  }
+  html,body{height:100%; margin:0; background:var(--bg); color:#111;}
+  .app{max-width:980px; margin:28px auto; padding:20px;}
+  header{display:flex; gap:12px; align-items:center; margin-bottom:18px;}
+  h1{margin:0; font-size:20px;}
+  .controls{display:flex; gap:8px; margin-left:auto; align-items:center;}
+  input[type="text"], input[type="date"]{padding:8px 10px; border-radius:8px; border:1px solid #ddd; font-size:14px;}
+  button{background:var(--accent); color:white; border:none; padding:8px 12px; border-radius:8px; cursor:pointer;}
+  button.alt{background:#fff; color:var(--accent); border:1px solid #ddd;}
+  .row{display:flex; gap:12px; align-items:center;}
+  .card{background:var(--card); border-radius:12px; padding:12px; box-shadow: 0 1px 2px rgba(0,0,0,0.03); margin-bottom:12px;}
+  #addForm{display:flex; gap:8px; align-items:center;}
+  .task-list{margin-top:12px;}
+  .task{display:flex; gap:10px; align-items:center; justify-content:space-between; padding:10px; border-radius:10px; border:1px solid #eee;}
+  .task-left{display:flex; gap:12px; align-items:center; min-width:0;}
+  .dot{width:10px;height:10px;border-radius:50%;}
+  .task-name{font-weight:600; min-width:140px; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
+  .small{font-size:13px; color:var(--muted);}
+  .task-actions{display:flex; gap:6px; align-items:center;}
+
+  .btn-small{
+  padding:6px 8px;
+  font-size:13px;
+  border-radius:8px;
+  border:1px solid #ccc;
+  background:#f5f5f5;
+  color:#333;
+  cursor:pointer;
+  }
+
+  .btn-small:hover{
+  background:#e8e8e8;
+  }
+
+  .btn-small:disabled{
+  opacity:0.4;
+  cursor:not-allowed;
+  }
+
+  .btn-start{background:linear-gradient(180deg,var(--accent) 0,var(--accent-2) 100%); color:white; border:none;}
+  #summary{display:flex; gap:12px; margin-top:14px; align-items:center;}
+  #chart{width:220px; height:220px; background:#fff; border-radius:12px; padding:12px; box-shadow:0 1px 2px rgba(0,0,0,0.03); display:flex; align-items:center; justify-content:center;}
+  .summary-stats{flex:1; display:flex; flex-direction:column; gap:8px;}
+  table{width:100%; border-collapse:collapse;}
+  td,th{padding:6px 8px; border-bottom:1px dashed #eee; text-align:left; font-size:13px;}
+  .muted{color:var(--muted);}
+  .danger{color:var(--danger);}
+  footer.small{margin-top:18px; color:var(--muted); font-size:13px;}
+  .timeline{height:34px; border-radius:6px; background:#fafafa; display:flex; position:relative; overflow:hidden; border:1px solid #eee;}
+  .slot{position:absolute; top:0; height:100%; border-right:1px solid rgba(0,0,0,0.05); box-sizing:border-box; border-radius:0;}
+  .ctrls{display:flex; gap:8px; align-items:center;}
+  .flex{flex:1;}
+  .tiny{font-size:12px;}
+  @media (max-width:700px){
+    .app{padding:12px;}
+    header{flex-wrap:wrap;}
+    #chart{display:none;}
+  }
+</style>
+</head>
+<body>
+  <div class="app">
+    <header>
+      <div>
+        <h1>Daily Non-Negs Tasks</h1>
+        <div class="small muted">Track sessions, durations and % of a 24-hour day</div>
+      </div>
+
+      <div class="controls">
+        <label class="small muted">Date</label>
+        <input id="datePicker" type="date" />
+        <div class="ctrls">
+          <button id="exportCsv" class="alt">Export CSV</button>
+          <button id="exportJson" class="alt">Export JSON</button>
+          <button id="clearDay" class="alt danger">Clear Day</button>
+        </div>
+      </div>
+    </header>
+
+    <section class="card" id="addCard">
+      <form id="addForm" onsubmit="return false;">
+        <input id="taskName" type="text" placeholder="New task name (e.g. Meditation)" required />
+        <button id="addTaskBtn">Add Task</button>
+        <div style="margin-left:auto" class="small muted">All data stored locally in your browser.</div>
+      </form>
+    </section>
+
+    <section class="card" id="mainCard">
+      <div id="summary">
+        <div style="flex:1">
+          <div style="display:flex; gap:14px; align-items:end;">
+            <div class="small muted">Total tracked</div>
+            <div id="totalTracked" style="font-weight:700;">0:00:00</div>
+            <div class="small muted">— Untracked</div>
+            <div id="untracked" style="font-weight:700;">24:00:00</div>
+          </div>
+
+          <div style="margin-top:10px;">
+            <div class="small muted">Timeline</div>
+            <div class="timeline" id="timeline"></div>
+          </div>
+
+          <div style="margin-top:12px;">
+            <div class="small muted">Tasks</div>
+            <div class="task-list" id="taskList"></div>
+          </div>
+        </div>
+
+        <div id="chart" class="">
+          <canvas id="pieCanvas" width="180" height="180"></canvas>
+        </div>
+      </div>
+    </section>
+
+    <section class="card">
+      <div class="small muted">Session log — sessions that overlap the selected date</div>
+      <div style="overflow:auto; margin-top:8px;">
+        <table id="sessionTable">
+          <thead>
+            <tr><th>Task</th><th>Session Start</th><th>Session End</th><th>Allocated (HH:MM:SS)</th><th>% of day</th></tr>
+          </thead>
+          <tbody></tbody>
+        </table>
+      </div>
+    </section>
+
+    <footer class="small muted">
+      Tips: Start/End multiple sessions per task. Sessions that cross midnight are automatically split and allocated to the appropriate dates.
+    </footer>
+  </div>
+
+<script>
+/* ====== STORAGE STRUCTURE ======
+state = {
+  tasks: [
+    { id, name, color, sessions: [ { startISO, endISO? } ] }
+  ],
+  version: 1
+}
+All saved to localStorage key NONNEGS_KEY
+*/
+const NONNEGS_KEY = 'nonnegs_app_v1';
+
+// Helpers
+function uid(prefix='id'){
+  return prefix + '_' + Math.random().toString(36).slice(2,9);
+}
+function fmtTimeSec(sec){
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec/3600); sec%=3600;
+  const m = Math.floor(sec/60); const s = sec%60;
+  return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
+}
+function isoToLocal(iso){
+  if(!iso) return '-';
+  const d = new Date(iso);
+  return d.toLocaleString();
+}
+function clamp(v,a,b){return Math.max(a,Math.min(b,v));}
+function pickColor(seed){
+  // deterministic-ish color pick
+  const colors = ['#4c5055','#6c5ce7','#00b894','#fdcb6e','#e17055','#0984e3','#d63031','#00cec9','#3067c9','#a29bfe'];
+  let n = 0; for(let i=0;i<seed.length;i++) n += seed.charCodeAt(i);
+  return colors[n % colors.length];
+}
+
+// Load / Save
+function loadState(){
+  const raw = localStorage.getItem(NONNEGS_KEY);
+  if(!raw) return { tasks: [], version:1 };
+  try { return JSON.parse(raw); } catch(e){ console.warn('corrupt state'); return { tasks:[], version:1 }; }
+}
+function saveState(state){
+  localStorage.setItem(NONNEGS_KEY, JSON.stringify(state));
+}
+
+// Global state
+let state = loadState();
+
+// UI elements
+const datePicker = document.getElementById('datePicker');
+const taskList = document.getElementById('taskList');
+const taskNameInput = document.getElementById('taskName');
+const addTaskBtn = document.getElementById('addTaskBtn');
+const totalTrackedEl = document.getElementById('totalTracked');
+const untrackedEl = document.getElementById('untracked');
+const timeline = document.getElementById('timeline');
+const sessionTableBody = document.querySelector('#sessionTable tbody');
+const exportCsvBtn = document.getElementById('exportCsv');
+const exportJsonBtn = document.getElementById('exportJson');
+const clearDayBtn = document.getElementById('clearDay');
+const pieCanvas = document.getElementById('pieCanvas');
+const pieCtx = pieCanvas.getContext('2d');
+
+// default date = today
+function setDateToToday(){
+  const today = new Date();
+  const isoDate = today.toISOString().slice(0,10);
+  datePicker.value = isoDate;
+}
+setDateToToday();
+
+// Add task
+addTaskBtn.addEventListener('click', ()=>{
+  const name = taskNameInput.value.trim();
+  if(!name) return alert('Please enter a task name.');
+  const newTask = { id: uid('t'), name, color: pickColor(name), sessions: [] };
+  state.tasks.push(newTask);
+  saveState(state);
+  taskNameInput.value = '';
+  render();
+});
+
+// Date change
+datePicker.addEventListener('change', render);
+
+// Start session
+function startTask(taskId){
+  const task = state.tasks.find(t=>t.id===taskId); if(!task) return;
+  // prevent simultaneous duplicate start for same task
+  const active = task.sessions.find(s => !s.endISO);
+  if(active) { alert('This task already has a running session.'); return; }
+  task.sessions.push({ startISO: (new Date()).toISOString() });
+  saveState(state);
+  render();
+}
+
+// End session
+function endTask(taskId){
+  const task = state.tasks.find(t=>t.id===taskId); if(!task) return;
+  const session = [...task.sessions].reverse().find(s=>!s.endISO);
+  if(!session) { alert('No active session for this task.'); return; }
+  session.endISO = (new Date()).toISOString();
+  // write back - session reference already in task.sessions
+  saveState(state);
+  render();
+}
+
+// Delete task
+function deleteTask(taskId){
+  if(!confirm('Delete this task and all its sessions?')) return;
+  state.tasks = state.tasks.filter(t=>t.id!==taskId);
+  saveState(state);
+  render();
+}
+
+// Utility: compute seconds overlap of [aStart,aEnd) with [dayStart, dayEnd)
+function overlapSeconds(aStartISO, aEndISO, dayISO){
+  // dayISO is 'YYYY-MM-DD'. Compute day window in local timezone.
+  const dayStart = new Date(dayISO + 'T00:00:00');
+  const dayEnd = new Date(dayISO + 'T24:00:00'); // works in modern browsers
+  const aStart = new Date(aStartISO);
+  const aEnd = aEndISO ? new Date(aEndISO) : new Date(); // if running, provisional end is now
+  const start = Math.max(aStart.getTime(), dayStart.getTime());
+  const end   = Math.min(aEnd.getTime(), dayEnd.getTime());
+  if(end <= start) return 0;
+  return Math.round((end - start) / 1000);
+}
+
+// Compute totals for the selected date
+function computeForDate(dateISO){
+  // returns { perTask: [ { taskId, name, color, seconds } ], totalSeconds, sessionRows: [...] }
+  const perTask = [];
+  let totalSeconds = 0;
+  const sessionRows = []; // for logging
+  for(const t of state.tasks){
+    let tSeconds = 0;
+    for(const s of t.sessions){
+      // sessions with no start are invalid ignore
+      if(!s.startISO) continue;
+      // If session has no endISO, treat provisional end as now (for running)
+      const sec = overlapSeconds(s.startISO, s.endISO, dateISO);
+      if(sec>0){
+        tSeconds += sec;
+        sessionRows.push({
+          taskName: t.name,
+          startISO: s.startISO,
+          endISO: s.endISO || null,
+          allocatedSeconds: sec,
+          taskId: t.id
+        });
+      }
+    }
+    perTask.push({ taskId: t.id, name: t.name, color: t.color, seconds: tSeconds });
+    totalSeconds += tSeconds;
+  }
+  return { perTask, totalSeconds, sessionRows };
+}
+
+// Render UI
+function render(){
+  const dateISO = datePicker.value;
+  if(!dateISO){ setDateToToday(); }
+  const data = computeForDate(datePicker.value);
+
+  // Task list
+  taskList.innerHTML = '';
+  for(const t of state.tasks){
+    const running = t.sessions.some(s=>!s.endISO);
+    // compute task seconds for this date
+    const tSeconds = data.perTask.find(p=>p.taskId===t.id)?.seconds || 0;
+    const pct = (tSeconds/86400)*100;
+    const el = document.createElement('div'); el.className='task';
+    el.innerHTML = `
+      <div class="task-left">
+        <div class="dot" style="background:${t.color}; opacity:${running?1:0.6};"></div>
+        <div style="min-width:0">
+          <div class="task-name" title="${t.name}">${t.name}</div>
+          <div class="small muted">${running? 'Running — click End' : 'Idle'}</div>
+        </div>
+      </div>
+
+      <div style="display:flex; gap:12px; align-items:center;">
+        <div style="text-align:right; min-width:120px;">
+          <div style="font-weight:700">${fmtTimeSec(tSeconds)}</div>
+          <div class="small muted">${pct.toFixed(2)}%</div>
+        </div>
+
+        <div class="task-actions">
+          <button class="btn-small btn-start" ${running ? 'disabled' : ''} onclick="startTask('${t.id}')">Start</button>
+          <button class="btn-small" ${running ? '' : 'disabled'} onclick="endTask('${t.id}')">End</button>
+          <button class="btn-small" onclick="editTaskName('${t.id}')">Edit</button>
+          <button class="btn-small" onclick="deleteTask('${t.id}')">Delete</button>
+        </div>
+      </div>
+    `;
+    taskList.appendChild(el);
+  }
+
+  // Summary numbers
+  totalTrackedEl.textContent = fmtTimeSec(data.totalSeconds);
+  untrackedEl.textContent = fmtTimeSec(86400 - data.totalSeconds);
+
+  // Timeline - render sessions as absolute positioned blocks across 24h
+  timeline.innerHTML = '';
+  // find all sessions that overlap date
+  let timelineEntries = [];
+  for(const t of state.tasks){
+    for(const s of t.sessions){
+      // compute overlap start/end in ms relative to dayStart
+      if(!s.startISO) continue;
+      const dayStart = new Date(datePicker.value + 'T00:00:00').getTime();
+      const dayEnd = new Date(datePicker.value + 'T24:00:00').getTime();
+      const sStart = new Date(s.startISO).getTime();
+      const sEnd   = s.endISO ? new Date(s.endISO).getTime() : Date.now();
+      const start = Math.max(sStart, dayStart);
+      const end = Math.min(sEnd, dayEnd);
+      if(end <= start) continue;
+      timelineEntries.push({ start, end, color: t.color, name: t.name, taskId: t.id });
+    }
+  }
+  // create slots
+  const width = timeline.clientWidth || 600;
+  const dayDuration = 24*3600*1000;
+  timelineEntries.forEach(entry=>{
+    const leftPct = ((entry.start - new Date(datePicker.value+'T00:00:00').getTime())/dayDuration)*100;
+    const wPct = ((entry.end - entry.start)/dayDuration)*100;
+    const div = document.createElement('div');
+    div.className = 'slot';
+    div.style.left = leftPct + '%';
+    div.style.width = wPct + '%';
+    div.style.background = entry.color;
+    div.style.opacity = '0.85';
+    div.title = entry.name + ' ' + new Date(entry.start).toLocaleTimeString() + ' - ' + new Date(entry.end).toLocaleTimeString();
+    timeline.appendChild(div);
+  });
+
+  // Session table
+  sessionTableBody.innerHTML = '';
+  // sort rows by allocatedSeconds desc
+  data.sessionRows.sort((a,b)=>b.allocatedSeconds - a.allocatedSeconds);
+  for(const r of data.sessionRows){
+    const tr = document.createElement('tr');
+    const pct = ((r.allocatedSeconds/86400)*100).toFixed(2) + '%';
+    tr.innerHTML = `<td>${escapeHtml(r.taskName)}</td>
+      <td>${r.startISO ? new Date(r.startISO).toLocaleString() : '-'}</td>
+      <td>${r.endISO ? new Date(r.endISO).toLocaleString() : 'Running'}</td>
+      <td>${fmtTimeSec(r.allocatedSeconds)}</td>
+      <td>${pct}</td>`;
+    sessionTableBody.appendChild(tr);
+  }
+
+  drawPie(data.perTask);
+}
+
+// Escape helper
+function escapeHtml(s){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+
+// Edit task name
+function editTaskName(taskId){
+  const t = state.tasks.find(x=>x.id===taskId); if(!t) return;
+  const newName = prompt('Rename task', t.name);
+  if(newName === null) return;
+  t.name = newName.trim() || t.name;
+  t.color = pickColor(t.name);
+  saveState(state);
+  render();
+}
+
+// CSV export for selected date
+exportCsvBtn.addEventListener('click', ()=>{
+  const dateISO = datePicker.value;
+  const data = computeForDate(dateISO);
+  // build rows: Task, Session Start ISO, Session End ISO, AllocatedSeconds, AllocatedHH:MM:SS, Percent
+  const rows = [['Task','Session Start','Session End','Allocated Seconds','Allocated HH:MM:SS','Percent of day']];
+  for(const r of data.sessionRows){
+    rows.push([
+      r.taskName,
+      r.startISO,
+      r.endISO || '',
+      r.allocatedSeconds,
+      fmtTimeSec(r.allocatedSeconds),
+      ((r.allocatedSeconds/86400)*100).toFixed(4) + '%'
+    ]);
+  }
+  // add summary rows
+  rows.push([]);
+  for(const p of data.perTask){
+    rows.push([p.name,'','',p.seconds, fmtTimeSec(p.seconds), ((p.seconds/86400)*100).toFixed(4) + '%']);
+  }
+  rows.push([]);
+  rows.push(['Total', '', '', data.totalSeconds, fmtTimeSec(data.totalSeconds), ((data.totalSeconds/86400)*100).toFixed(4) + '%']);
+
+  const csv = rows.map(r => r.map(cell => `"${(''+cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `nonnegs_${dateISO}.csv`; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// JSON export (full app)
+exportJsonBtn.addEventListener('click', ()=>{
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `nonnegs_full_export_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
+  URL.revokeObjectURL(url);
+});
+
+// Clear day: remove all session data that overlaps the selected date
+clearDayBtn.addEventListener('click', ()=>{
+  if(!confirm('Clear all sessions that overlap the selected date? This will permanently remove them.')) return;
+  const dateISO = datePicker.value;
+  const dayStart = new Date(dateISO+'T00:00:00').getTime();
+  const dayEnd   = new Date(dateISO+'T24:00:00').getTime();
+  for(const t of state.tasks){
+    // keep only sessions that do NOT overlap the day
+    t.sessions = t.sessions.filter(s => {
+      if(!s.startISO) return true;
+      const sStart = new Date(s.startISO).getTime();
+      const sEnd   = s.endISO ? new Date(s.endISO).getTime() : Date.now();
+      // overlap iff not (sEnd <= dayStart || sStart >= dayEnd)
+      const overlap = !(sEnd <= dayStart || sStart >= dayEnd);
+      return !overlap; // keep if no overlap
+    });
+  }
+  saveState(state);
+  render();
+});
+
+// Pie drawing
+function drawPie(perTask){
+  // perTask: [{ taskId, name, color, seconds }]
+  const items = perTask.filter(p=>p.seconds>0);
+  const total = items.reduce((s,x)=>s+x.seconds,0);
+  const ctx = pieCtx;
+  const w = pieCanvas.width, h = pieCanvas.height;
+  ctx.clearRect(0,0,w,h);
+  if(total<=0){
+    // draw empty circle
+    ctx.beginPath();
+    ctx.arc(w/2,h/2,60,0,Math.PI*2);
+    ctx.fillStyle = '#f3f4f6';
+    ctx.fill();
+    ctx.font = '14px sans-serif'; ctx.fillStyle = '#9ca3af'; ctx.textAlign='center';
+    ctx.fillText('No data', w/2, h/2+6);
+    return;
+  }
+  let startAng = -Math.PI/2;
+  items.forEach(item=>{
+    const angle = (item.seconds/total)*Math.PI*2;
+    ctx.beginPath();
+    ctx.moveTo(w/2,h/2);
+    ctx.arc(w/2,h/2,70,startAng,startAng+angle);
+    ctx.closePath();
+    ctx.fillStyle = item.color;
+    ctx.fill();
+    startAng += angle;
+  });
+  // inner circle to make donut
+  ctx.beginPath();
+  ctx.arc(w/2,h/2,40,0,Math.PI*2);
+  ctx.fillStyle = '#fff'; ctx.fill();
+
+  // legend - top-right
+  let legendY = 18;
+  ctx.font = '11px sans-serif'; ctx.textAlign='left';
+  items.slice(0,6).forEach(item=>{
+    ctx.fillStyle = item.color;
+    ctx.fillRect(10, legendY-9, 10, 10);
+    ctx.fillStyle = '#111';
+    ctx.fillText(`${item.name} ${((item.seconds/86400)*100).toFixed(2)}%`, 26, legendY);
+    legendY += 14;
+  });
+}
+
+// initial render
+render();
+
+// Expose functions to window for button onClick from innerHTML
+window.startTask = startTask;
+window.endTask = endTask;
+window.deleteTask = deleteTask;
+window.editTaskName = editTaskName;
+
+// Auto-update running timers every second
+setInterval(render, 1000);
+
+// load sample demo if no tasks exist (optional for first-time user)
+(function maybeSeed(){
+  if(state.tasks.length === 0) return;
+})();
+</script>
+</body>
+</html>
