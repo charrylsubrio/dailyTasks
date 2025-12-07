@@ -3,48 +3,34 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>Daily Non-Negs Tasks — Mobile Layout</title>
-
-<!--
-Mobile-first single-file app styled for a tall phone design surface:
-Design reference: Width 1080px x Height 2460px.
-The app remains responsive; container uses max-width 1080 and min-height 2460 as the design canvas.
--->
-
+<title>Daily Non-Negs Tasks</title>
 <style>
   :root{
-    --bg: #fbfcfd;
-    --card: #ffffff;
-    --muted: #6b7280;
-    --accent: #4c5055;     /* matches your logo color */
-    --accent-2: #2f3336;
-    --danger: #d9534f;
-    --touch: 52px;         /* minimum touch target height */
-    --maxw: 1080px;
-    --maxh: 2460px;
+    --bg:#fbfcfd;
+    --card:#ffffff;
+    --muted:#6b7280;
+    --accent:#4c5055;
+    --accent-2:#2f3336;
+    --danger:#d9534f;
+    --touch-min:52px;
+    --maxw:1080px;
+    --maxh:2460px;
     font-family: Inter, system-ui, -apple-system, "Segoe UI", Roboto, "Helvetica Neue", Arial;
-    -webkit-font-smoothing:antialiased;
-    -moz-osx-font-smoothing:grayscale;
   }
-
-  /* Basic reset */
-  html,body{height:100%; margin:0; padding:0; background:var(--bg); color:#111;}
   *{box-sizing:border-box;}
+  html,body{height:100%; margin:0; padding:0; background:var(--bg); color:#111;}
   a{color:inherit; text-decoration:none;}
-
-  /* App canvas: constrained to the design reference but responsive */
   .viewport {
     width:100%;
     max-width:var(--maxw);
     min-height:var(--maxh);
     margin:0 auto;
-    padding:28px 20px;
+    padding:28px 18px;
     display:flex;
     flex-direction:column;
     gap:18px;
   }
 
-  /* Header */
   header{
     display:flex;
     flex-direction:row;
@@ -61,21 +47,16 @@ The app remains responsive; container uses max-width 1080 and min-height 2460 as
   h1{margin:0; font-size:20px; color:var(--accent); line-height:1;}
   .sub{font-size:12px; color:var(--muted); margin-top:2px;}
 
-  /* Controls area */
-  .controls {
-    display:flex;
-    gap:8px;
-    align-items:center;
-  }
+  .controls { display:flex; gap:8px; align-items:center; }
+
   input[type="date"]{
     padding:10px 12px; border-radius:10px; border:1px solid #e6e9ec; font-size:14px;
   }
 
-  /* Add task card */
   .card {
     background:var(--card);
     border-radius:14px;
-    padding:14px;
+    padding:16px;
     box-shadow:0 6px 18px rgba(19,19,24,0.03);
     border:1px solid #eef2f5;
   }
@@ -92,96 +73,101 @@ The app remains responsive; container uses max-width 1080 and min-height 2460 as
   button.primary{
     background:linear-gradient(180deg,var(--accent) 0,var(--accent-2) 100%);
     color:white; border:none; padding:12px 16px; border-radius:12px; font-weight:600; font-size:15px;
-    min-height:var(--touch);
+    min-height:var(--touch-min);
   }
   button.alt {
     background:#fff; border:1px solid #e6e9ec; padding:10px 12px; border-radius:12px; color:var(--accent);
     font-weight:600;
   }
 
-  /* Main layout stacked for mobile */
-  .main {
-    display:flex; flex-direction:column; gap:12px;
-  }
+  .main { display:flex; flex-direction:column; gap:12px; }
 
-  /* Totals + chart row reflow */
-  .summary {
-    display:flex; flex-direction:column; gap:10px;
-  }
-  .totals {
-    display:flex; gap:12px; align-items:center; justify-content:space-between;
-  }
-  .totals .big {
-    font-size:20px; font-weight:700;
-  }
+  .summary { display:flex; flex-direction:column; gap:10px; }
+  .totals { display:flex; gap:12px; align-items:center; justify-content:space-between; }
+  .totals .big { font-size:20px; font-weight:700; }
   .timeline-wrap{display:flex; flex-direction:column; gap:8px;}
   .timeline{
-    height:54px; border-radius:10px; background:#fbfbfb; border:1px solid #eef2f5; overflow:hidden; position:relative;
+    height:72px; border-radius:10px; background:#fbfbfb; border:1px solid #eef2f5; overflow:hidden; position:relative;
+    padding:6px; min-height:72px;
+  }
+  .timeline:empty::before{
+    content: 'No sessions yet — start a task';
+    display:block;
+    color:var(--muted);
+    text-align:center;
+    line-height:72px;
+    font-size:13px;
   }
 
-  /* Tasks list - stacked cards */
   .task-list{display:flex; flex-direction:column; gap:10px;}
   .task {
-    display:flex; gap:12px; align-items:center; justify-content:space-between; padding:10px;
+    display:flex; gap:12px; align-items:center; justify-content:space-between; padding:14px;
     border-radius:12px; border:1px solid #f0f3f6; background:linear-gradient(180deg,#fff,#fcfdff);
+    overflow:hidden;
   }
-  .task-left{display:flex; gap:12px; align-items:center; min-width:0;}
+  .task-left{ display:flex; gap:12px; align-items:center; min-width:0; flex:1; }
   .dot{width:14px;height:14px;border-radius:50%;}
   .task-name{font-weight:700; font-size:15px; min-width:0; overflow:hidden; text-overflow:ellipsis; white-space:nowrap;}
   .task-sub{font-size:12px; color:var(--muted); margin-top:2px;}
+  .task-right{ display:flex; align-items:center; gap:12px; }
 
-  .task-right{display:flex; gap:8px; align-items:center;}
-  .task-stats{ text-align:right; min-width:120px; }
-  .task-stats .time{font-weight:800; font-size:16px;}
-  .task-stats .pct{font-size:12px; color:var(--muted); margin-top:2px;}
+  .task-stats { text-align:right; min-width:110px; margin-left:6px; }
+  .task-stats .time{ font-weight:800; font-size:16px; }
+  .task-stats .pct{ font-size:12px; color:var(--muted); margin-top:2px; }
 
-  /* Buttons for each task - touch friendly */
-  .task-actions{display:flex; gap:8px; align-items:center;}
-  .btn-small {
+  .task-actions{ display:flex; gap:8px; align-items:center; justify-content:flex-end; }
+
+  .btn-small{
     padding:10px 12px;
     font-size:14px;
     border-radius:10px;
     border:1px solid #d1d5db;
-    background:#f8fafb;
+    background:#fff;
     color:#111;
     cursor:pointer;
-    min-height:var(--touch);
-    display:inline-flex; align-items:center; justify-content:center;
-    box-shadow:0 1px 0 rgba(0,0,0,0.02);
+    min-height:var(--touch-min);
+    display:inline-flex;
+    align-items:center;
+    justify-content:center;
+    box-shadow: 0 1px 0 rgba(0,0,0,0.03);
+    white-space:nowrap;
   }
-  .btn-small:hover{filter:brightness(.98);}
-  .btn-small:disabled{opacity:.45; cursor:not-allowed;}
-  .btn-start{background:linear-gradient(180deg,var(--accent) 0,var(--accent-2) 100%); color:white; border:none; font-weight:700;}
-  .btn-end{background:#fff; color:#0b7285; border:1px solid #cfecef;}
-  .btn-edit{background:#fff; color:#1f6feb;}
-  .btn-delete{background:#fff; color:var(--danger); border:1px solid rgba(217,83,79,0.1);}
+  .btn-small:hover{ filter:brightness(.98); }
+  .btn-small:disabled{ opacity:.45; cursor:not-allowed; }
 
-  /* Session table */
+  .btn-start{
+    background:linear-gradient(180deg,var(--accent) 0,var(--accent-2) 100%);
+    color:#fff; border:none; font-weight:700; min-width:84px;
+  }
+  .btn-end{ background:#f8fafb; color:#0b7285; border:1px solid #d7eef0; }
+  .btn-edit{ background:#fff; color:#1f6feb; border:1px solid #dce7ff; }
+  .btn-delete{ background:#fff; color:var(--danger); border:1px solid rgba(217,83,79,0.08); }
+
+  @media (max-width:420px){
+    .task { flex-direction:column; align-items:stretch; gap:10px; }
+    .task-right{ display:flex; flex-direction:row; align-items:center; justify-content:space-between; gap:8px; }
+    .task-actions{ gap:8px; flex-wrap:wrap; justify-content:flex-end; }
+    .btn-small{ min-width:46%; }
+    .task-stats{ text-align:left; }
+  }
+
+  .chart-wrap{ display:flex; justify-content:center; align-items:center; margin-top:6px; }
+  canvas{ max-width:160px; width:100%; height:auto; display:block; margin:auto; }
+
   .log { overflow:auto; border-radius:12px; border:1px solid #eef2f5; padding:8px; background:#fff; }
-  table{width:100%; border-collapse:collapse; font-size:13px;}
-  th,td{padding:8px 6px; text-align:left; border-bottom:1px dashed #f1f5f7; vertical-align:top;}
-  th{font-weight:700; font-size:13px; color:var(--muted);}
+  table{ width:100%; border-collapse:collapse; font-size:13px; }
+  th,td{ padding:8px 6px; text-align:left; border-bottom:1px dashed #f1f5f7; vertical-align:top; white-space:normal; }
+  th{ font-weight:700; color:var(--muted); }
 
-  /* Pie chart (small, centered) */
-  .chart-wrap{display:flex; justify-content:center; align-items:center; margin-top:6px;}
-  canvas{max-width:240px; width:100%; height:auto; display:block; margin:auto; }
+  .card { padding:16px; }
 
-  /* Footer */
-  footer{font-size:12px; color:var(--muted); padding:6px 0;}
-
-  /* Responsive adjustments for wider screens (tablet / desktop) */
-  @media (min-width:700px){
-    .viewport{ padding:36px; }
-    .summary{ flex-direction:row; gap:18px; align-items:flex-start; }
-    .totals{ flex-direction:column; align-items:flex-start; gap:8px; }
-    .timeline{ height:74px; }
-    .chart-wrap{ width:240px; flex-shrink:0; }
-    .task-stats{ min-width:140px; }
+  /* version badge */
+  #buildBadge{
+    position:fixed; right:10px; bottom:10px; background:var(--accent); color:#fff; padding:6px 10px;
+    border-radius:10px; font-weight:700; z-index:9999; box-shadow:0 6px 18px rgba(0,0,0,0.08);
   }
 
-  /* Very large (simulate 1080 design viewport scale if displayed in browser)
-     Using a transform scale for demo is not necessary; the app will use max-width:1080 as design surface.
-  */
+  /* small scrollbar */
   body::-webkit-scrollbar{ width:10px; height:10px; }
   body::-webkit-scrollbar-thumb{ background:rgba(0,0,0,0.08); border-radius:10px; }
 </style>
@@ -190,8 +176,8 @@ The app remains responsive; container uses max-width 1080 and min-height 2460 as
   <div class="viewport" id="appRoot">
     <header>
       <div class="brand">
-        <h1>Daily Non-Negs</h1>
-        <div class="sub">Track sessions • % of a 24-hour day</div>
+        <h1>Daily Non-Negs Tasks</h1>
+        <div class="sub">Track sessions, durations and % of a 24-hour day</div>
       </div>
 
       <div class="controls">
@@ -202,22 +188,16 @@ The app remains responsive; container uses max-width 1080 and min-height 2460 as
       </div>
     </header>
 
-    <!-- Add task -->
-    <section class="card" aria-labelledby="addTaskTitle">
-      <div style="display:flex; gap:12px; align-items:center;">
-        <div style="flex:1;">
-          <form id="addForm" onsubmit="return false;" style="display:flex; gap:10px; align-items:center;">
-            <input id="taskName" type="text" placeholder="Add a task (e.g. Meditation)" aria-label="Task name" />
-            <button id="addTaskBtn" class="primary">Add</button>
-          </form>
-          <div class="sub" style="margin-top:8px;">Tap Start to begin timing. Sessions that cross midnight are split automatically.</div>
-        </div>
-      </div>
+    <section class="card" id="addCard">
+      <form id="addForm" onsubmit="return false;">
+        <input id="taskName" type="text" placeholder="Add a task (e.g. Meditation)" aria-label="Task name" />
+        <button id="addTaskBtn" class="primary">Add</button>
+      </form>
+      <div class="sub" style="margin-top:8px;">Tap Start to begin timing. Sessions that cross midnight are split automatically.</div>
     </section>
 
-    <!-- Main -->
     <main class="main">
-      <section class="card summary" aria-labelledby="summaryTitle">
+      <section class="card summary">
         <div style="flex:1;">
           <div class="totals">
             <div>
@@ -233,22 +213,22 @@ The app remains responsive; container uses max-width 1080 and min-height 2460 as
 
           <div class="timeline-wrap" style="margin-top:12px;">
             <div class="small muted">Timeline</div>
-            <div class="timeline" id="timeline" aria-hidden="false"></div>
+            <div class="timeline" id="timeline"></div>
           </div>
         </div>
 
-        <div class="chart-wrap" aria-hidden="false">
+        <div class="chart-wrap">
           <canvas id="pieCanvas" width="220" height="220" role="img" aria-label="Breakdown chart"></canvas>
         </div>
       </section>
 
-      <section class="card" aria-labelledby="tasksTitle">
+      <section class="card">
         <div class="small muted" style="margin-bottom:8px;">Tasks</div>
         <div id="taskList" class="task-list"></div>
       </section>
 
-      <section class="card log" aria-labelledby="logTitle">
-        <div class="small muted" style="margin-bottom:8px;">Session log</div>
+      <section class="card log">
+        <div class="small muted" style="margin-bottom:8px;">Session log — sessions that overlap the selected date</div>
         <div style="overflow:auto;">
           <table id="sessionTable" aria-live="polite">
             <thead><tr><th>Task</th><th>Start</th><th>End</th><th>Allocated</th><th>%</th></tr></thead>
@@ -258,35 +238,24 @@ The app remains responsive; container uses max-width 1080 and min-height 2460 as
       </section>
     </main>
 
-    <footer>
+    <footer class="card" style="font-size:13px; color:var(--muted);">
       Tip: Use Add → Start → End. Export with CSV/JSON. Data saved locally on your device.
     </footer>
   </div>
 
-<script>
-/* Logic preserved & adapted from prior full app.
-   Functionality: add task, start/end sessions, split across midnight,
-   compute per-date allocation, export CSV/JSON, localStorage persistence.
-*/
+  <div id="buildBadge">nonnegs v3</div>
 
-const NONNEGS_KEY = 'nonnegs_app_v1_mobile_v1';
+<script>
+/* Storage key (bumped to indicate new UI) */
+const NONNEGS_KEY = 'nonnegs_app_v1_mobile_v3';
 
 /* Helpers */
 function uid(prefix='id'){ return prefix + '_' + Math.random().toString(36).slice(2,9); }
-function fmtTimeSec(sec){
-  sec = Math.max(0, Math.round(sec));
-  const h = Math.floor(sec/3600); sec %= 3600;
-  const m = Math.floor(sec/60); const s = sec % 60;
-  return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`;
-}
-function pickColor(seed){
-  const colors = ['#4c5055','#6c5ce7','#00b894','#fdcb6e','#e17055','#0984e3','#d63031','#00cec9','#3067c9','#a29bfe'];
-  let n = 0; for(let i=0;i<seed.length;i++) n += seed.charCodeAt(i);
-  return colors[n % colors.length];
-}
+function fmtTimeSec(sec){ sec = Math.max(0, Math.round(sec)); const h=Math.floor(sec/3600); sec%=3600; const m=Math.floor(sec/60); const s=sec%60; return `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}`; }
+function pickColor(seed){ const colors=['#4c5055','#6c5ce7','#00b894','#fdcb6e','#e17055','#0984e3','#d63031','#00cec9','#3067c9','#a29bfe']; let n=0; for(let i=0;i<seed.length;i++) n+=seed.charCodeAt(i); return colors[n % colors.length]; }
 
-/* Storage */
-function loadState(){ try { const r = localStorage.getItem(NONNEGS_KEY); return r ? JSON.parse(r) : {tasks:[],version:1}; } catch(e){return {tasks:[],version:1}; } }
+/* Load / Save */
+function loadState(){ try{ const r=localStorage.getItem(NONNEGS_KEY); return r?JSON.parse(r):{tasks:[],version:1}; } catch(e){ return {tasks:[],version:1}; } }
 function saveState(state){ localStorage.setItem(NONNEGS_KEY, JSON.stringify(state)); }
 
 let state = loadState();
@@ -305,49 +274,44 @@ const exportJsonBtn = document.getElementById('exportJson');
 const pieCanvas = document.getElementById('pieCanvas');
 const pieCtx = pieCanvas.getContext('2d');
 
-/* default date to today */
-(function setDateToToday(){ const today = new Date(); datePicker.value = today.toISOString().slice(0,10); })();
+/* default date = today */
+(function setDateToday(){ const d=new Date(); datePicker.value = d.toISOString().slice(0,10); })();
 
 /* Add task */
 addTaskBtn.addEventListener('click', ()=>{
   const name = taskNameInput.value.trim();
-  if(!name) { alert('Please enter a task name'); return; }
+  if(!name){ alert('Please enter a task name.'); return; }
   state.tasks.push({ id: uid('t'), name, color: pickColor(name), sessions: [] });
-  saveState(state);
-  taskNameInput.value = '';
-  render();
+  saveState(state); taskNameInput.value=''; render();
 });
 
-/* start-end-delete-edit */
+/* actions */
 function startTask(taskId){
-  const task = state.tasks.find(t=>t.id===taskId); if(!task) return;
-  const running = task.sessions.find(s=>!s.endISO);
-  if(running){ alert('Task already running'); return; }
-  task.sessions.push({ startISO:(new Date()).toISOString() });
+  const t = state.tasks.find(x=>x.id===taskId); if(!t) return;
+  if(t.sessions.find(s=>!s.endISO)){ alert('This task already has a running session.'); return; }
+  t.sessions.push({ startISO:(new Date()).toISOString() });
   saveState(state); render();
 }
 function endTask(taskId){
-  const task = state.tasks.find(t=>t.id===taskId); if(!task) return;
-  const session = [...task.sessions].reverse().find(s=>!s.endISO);
-  if(!session){ alert('No running session'); return; }
-  session.endISO = (new Date()).toISOString();
+  const t = state.tasks.find(x=>x.id===taskId); if(!t) return;
+  const s = [...t.sessions].reverse().find(s=>!s.endISO);
+  if(!s){ alert('No active session for this task'); return; }
+  s.endISO = (new Date()).toISOString();
   saveState(state); render();
 }
 function deleteTask(taskId){
-  if(!confirm('Delete task and all sessions?')) return;
+  if(!confirm('Delete this task and all sessions?')) return;
   state.tasks = state.tasks.filter(t=>t.id!==taskId);
   saveState(state); render();
 }
 function editTaskName(taskId){
   const t = state.tasks.find(x=>x.id===taskId); if(!t) return;
-  const newName = prompt('Rename task', t.name);
-  if(newName === null) return;
-  t.name = newName.trim() || t.name;
-  t.color = pickColor(t.name);
+  const val = prompt('Rename task', t.name); if(val===null) return;
+  t.name = val.trim() || t.name; t.color = pickColor(t.name);
   saveState(state); render();
 }
 
-/* compute overlap seconds */
+/* compute overlap seconds for a day */
 function overlapSeconds(aStartISO, aEndISO, dayISO){
   const dayStart = new Date(dayISO + 'T00:00:00').getTime();
   const dayEnd   = new Date(dayISO + 'T24:00:00').getTime();
@@ -359,21 +323,18 @@ function overlapSeconds(aStartISO, aEndISO, dayISO){
   return Math.round((end - start)/1000);
 }
 
-/* compute per-date */
+/* compute per date */
 function computeForDate(dateISO){
-  const perTask = []; let totalSeconds = 0; const sessionRows = [];
+  const perTask=[]; let totalSeconds=0; const sessionRows=[];
   for(const t of state.tasks){
-    let tSeconds = 0;
+    let tSec=0;
     for(const s of t.sessions){
       if(!s.startISO) continue;
       const sec = overlapSeconds(s.startISO, s.endISO, dateISO);
-      if(sec>0){
-        tSeconds += sec;
-        sessionRows.push({ taskName: t.name, startISO: s.startISO, endISO: s.endISO || null, allocatedSeconds: sec, taskId: t.id });
-      }
+      if(sec>0){ tSec += sec; sessionRows.push({ taskName:t.name, startISO:s.startISO, endISO:s.endISO||null, allocatedSeconds:sec, taskId:t.id }); }
     }
-    perTask.push({ taskId: t.id, name: t.name, color: t.color, seconds: tSeconds });
-    totalSeconds += tSeconds;
+    perTask.push({ taskId:t.id, name:t.name, color:t.color, seconds:tSec });
+    totalSeconds += tSec;
   }
   return { perTask, totalSeconds, sessionRows };
 }
@@ -384,14 +345,14 @@ function render(){
   datePicker.value = dateISO;
   const data = computeForDate(dateISO);
 
-  // tasks
+  // tasks list
   taskList.innerHTML = '';
   for(const t of state.tasks){
-    const running = t.sessions.some(s => !s.endISO);
+    const running = t.sessions.some(s=>!s.endISO);
     const tSeconds = data.perTask.find(p=>p.taskId===t.id)?.seconds || 0;
     const pct = (tSeconds/86400)*100;
-    const div = document.createElement('div'); div.className='task';
-    div.innerHTML = `
+    const item = document.createElement('div'); item.className='task';
+    item.innerHTML = `
       <div class="task-left">
         <div class="dot" style="background:${t.color}; opacity:${running?1:0.9};"></div>
         <div style="min-width:0;">
@@ -408,13 +369,13 @@ function render(){
 
         <div class="task-actions">
           <button class="btn-small btn-start" ${running ? 'disabled' : ''} onclick="startTask('${t.id}')">Start</button>
-          <button class="btn-small" ${running ? '' : 'disabled'} onclick="endTask('${t.id}')">End</button>
-          <button class="btn-small" onclick="editTaskName('${t.id}')">Edit</button>
-          <button class="btn-small" onclick="deleteTask('${t.id}')">Delete</button>
+          <button class="btn-small btn-end" ${running ? '' : 'disabled'} onclick="endTask('${t.id}')">End</button>
+          <button class="btn-small btn-edit" onclick="editTaskName('${t.id}')">Edit</button>
+          <button class="btn-small btn-delete" onclick="deleteTask('${t.id}')">Delete</button>
         </div>
       </div>
     `;
-    taskList.appendChild(div);
+    taskList.appendChild(item);
   }
 
   totalTrackedEl.textContent = fmtTimeSec(data.totalSeconds);
@@ -422,7 +383,7 @@ function render(){
 
   // timeline
   timeline.innerHTML = '';
-  const dayStartMs = new Date(dateISO+'T00:00:00').getTime();
+  const dayStartMs = new Date(dateISO + 'T00:00:00').getTime();
   const dayDuration = 24*3600*1000;
   for(const t of state.tasks){
     for(const s of t.sessions){
@@ -435,12 +396,11 @@ function render(){
       const leftPct = ((start - dayStartMs)/dayDuration)*100;
       const wPct = ((end - start)/dayDuration)*100;
       const slot = document.createElement('div');
-      slot.className = 'slot';
       slot.style.position = 'absolute';
       slot.style.left = leftPct + '%';
       slot.style.width = wPct + '%';
-      slot.style.top = '0';
-      slot.style.bottom = '0';
+      slot.style.top = '6px';
+      slot.style.bottom = '6px';
       slot.style.background = t.color;
       slot.style.opacity = '0.92';
       slot.style.borderRadius = '6px';
@@ -454,19 +414,18 @@ function render(){
   data.sessionRows.sort((a,b)=>b.allocatedSeconds - a.allocatedSeconds);
   for(const r of data.sessionRows){
     const tr = document.createElement('tr');
-    const pct = ((r.allocatedSeconds/86400)*100).toFixed(2) + '%';
     tr.innerHTML = `<td>${escapeHtml(r.taskName)}</td>
       <td>${r.startISO ? new Date(r.startISO).toLocaleString() : '-'}</td>
       <td>${r.endISO ? new Date(r.endISO).toLocaleString() : 'Running'}</td>
       <td>${fmtTimeSec(r.allocatedSeconds)}</td>
-      <td>${pct}</td>`;
+      <td>${((r.allocatedSeconds/86400)*100).toFixed(2)}%</td>`;
     sessionTableBody.appendChild(tr);
   }
 
   drawPie(data.perTask);
 }
 
-/* Escape helper */
+/* escape html */
 function escapeHtml(s){ return (s+'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
 
 /* Export CSV */
@@ -483,58 +442,44 @@ exportCsvBtn.addEventListener('click', ()=>{
   }
   rows.push([]);
   rows.push(['Total','', '', data.totalSeconds, fmtTimeSec(data.totalSeconds), ((data.totalSeconds/86400)*100).toFixed(4)+'%']);
-
   const csv = rows.map(r => r.map(cell => `"${(''+cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `nonnegs_${dateISO}.csv`; document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  const blob = new Blob([csv], {type:'text/csv;charset=utf-8;'}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `nonnegs_${dateISO}.csv`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
 
 /* Export JSON */
 exportJsonBtn.addEventListener('click', ()=>{
-  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'});
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a'); a.href = url; a.download = `nonnegs_export_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove();
-  URL.revokeObjectURL(url);
+  const blob = new Blob([JSON.stringify(state, null, 2)], {type:'application/json'}); const url = URL.createObjectURL(blob);
+  const a = document.createElement('a'); a.href = url; a.download = `nonnegs_export_${new Date().toISOString().slice(0,10)}.json`; document.body.appendChild(a); a.click(); a.remove(); URL.revokeObjectURL(url);
 });
 
-/* Pie drawing */
+/* draw pie */
 function drawPie(perTask){
   const items = perTask.filter(p=>p.seconds>0);
   const total = items.reduce((s,x)=>s+x.seconds,0);
-  const ctx = pieCtx;
-  const w = pieCanvas.width, h = pieCanvas.height;
+  const ctx = pieCtx; const w = pieCanvas.width, h = pieCanvas.height;
   ctx.clearRect(0,0,w,h);
   if(total <= 0){
     ctx.beginPath(); ctx.arc(w/2,h/2,60,0,Math.PI*2); ctx.fillStyle='#f3f4f6'; ctx.fill();
-    ctx.font='14px sans-serif'; ctx.fillStyle='#9ca3af'; ctx.textAlign='center'; ctx.fillText('No data', w/2, h/2+6);
-    return;
+    ctx.font='14px sans-serif'; ctx.fillStyle='#9ca3af'; ctx.textAlign='center'; ctx.fillText('No data', w/2, h/2+6); return;
   }
   let startAng = -Math.PI/2;
   items.forEach(item=>{
     const angle = (item.seconds/total)*Math.PI*2;
-    ctx.beginPath();
-    ctx.moveTo(w/2,h/2);
-    ctx.arc(w/2,h/2,70,startAng,startAng+angle);
-    ctx.closePath();
-    ctx.fillStyle = item.color;
-    ctx.fill();
+    ctx.beginPath(); ctx.moveTo(w/2,h/2); ctx.arc(w/2,h/2,70,startAng,startAng+angle); ctx.closePath();
+    ctx.fillStyle = item.color; ctx.fill();
     startAng += angle;
   });
   ctx.beginPath(); ctx.arc(w/2,h/2,38,0,Math.PI*2); ctx.fillStyle='#fff'; ctx.fill();
 }
 
-/* Expose functions for onclick attributes */
-window.startTask = startTask;
-window.endTask = endTask;
-window.deleteTask = deleteTask;
-window.editTaskName = editTaskName;
+/* expose functions */
+window.startTask = startTask; window.endTask = endTask; window.deleteTask = deleteTask; window.editTaskName = editTaskName;
 
-/* Auto refresh running timers/ UI every second */
-setInterval(render,1000);
+/* auto refresh */
+setInterval(render, 1000);
 
-/* Helper: render on load */
+/* initial render */
 render();
 </script>
 </body>
