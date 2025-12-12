@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Daily Non-Negotiable Tasks — Compact Icon Actions</title>
+<title>Daily Non-Negotiable Tasks — Stacked Actions</title>
 <style>
   :root{
     --bg:#f7f7f8;
@@ -40,24 +40,17 @@
   .big{font-size:16px;font-weight:700;color:var(--accent)}
   .small{font-size:12px;color:var(--muted)}
   .task-list{display:flex;flex-direction:column;gap:10px;margin-bottom:88px}
-  /* slimmer task card */
-  .task-card{background:var(--panel);padding:10px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;flex-direction:row;gap:12px;align-items:flex-start}
-  .task-left{flex:1;display:flex;flex-direction:column;gap:6px}
+  /* slimmer task card + stacked buttons */
+  .task-card{background:var(--panel);padding:10px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;flex-direction:row;gap:12px;align-items:flex-start;position:relative}
+  .task-left{flex:1;display:flex;flex-direction:column;gap:6px;padding-right:12px}
   .task-title{font-weight:700;color:#111;font-size:18px}
   .task-meta{font-size:12px;color:var(--muted)}
-  .task-right{display:flex;align-items:center}
-  /* small circular actions icon */
-  .actions-btn{
-    width:42px;height:42px;border-radius:10px;border:0;background:var(--panel);display:flex;align-items:center;justify-content:center;
-    box-shadow:0 6px 16px rgba(0,0,0,0.04);cursor:pointer;padding:6px;
-  }
-  .actions-btn:focus{outline:2px solid rgba(76,80,85,0.12)}
-  .actions-icon{width:18px;height:18px;display:block}
-  .action-menu{position:fixed;z-index:120;background:#fff;border-radius:10px;box-shadow:0 10px 30px rgba(0,0,0,0.15);padding:8px;display:flex;flex-direction:column;gap:8px;min-width:140px}
-  .action-menu button{padding:8px;border-radius:8px;border:0;background:var(--panel);font-weight:700}
-  .action-menu button.start{background:linear-gradient(90deg,var(--accent),#2f3336);color:#fff}
-  .action-menu button.end{background:var(--danger);color:#fff}
-  .action-menu button.delete{background:#fff;border:1px solid var(--glass);color:var(--muted)}
+  .task-right{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:44px}
+  .stack-btn{width:44px;height:44px;border-radius:12px;border:0;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700}
+  .stack-btn[aria-label="Start"]{background:linear-gradient(90deg,var(--accent),#2f3336);color:#fff}
+  .stack-btn[aria-label="End"]{background:var(--danger);color:#fff}
+  .stack-btn[aria-label="Delete"]{background:#fff;border:1px solid var(--glass);color:var(--muted)}
+  .stack-btn:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
   .progress{height:8px;background:var(--glass);border-radius:6px;overflow:hidden;margin-top:6px}
   .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#6b6f73);width:0%}
   .fab{position:fixed;right:16px;bottom:18px;z-index:30}
@@ -99,6 +92,7 @@
     <button class="btn ghost" id="prev-day" title="Previous day">‹</button>
     <button class="btn" id="today" title="Jump to today">Today</button>
     <button class="btn ghost" id="next-day" title="Next day">›</button>
+    <!-- Header intentionally does not show user email/badge -->
     <div id="user-area"></div>
   </div>
 </header>
@@ -152,9 +146,6 @@
 
 <footer class="smallprint">Saved locally (localStorage). Works offline.</footer>
 
-<!-- Modal/backdrop container used by auth modal builder in script -->
-<div id="modal-root" style="display:none"></div>
-
 <!-- Firebase + app logic -->
 <script type="module">
 /* ========= Firebase configuration (replaceable) ========= */
@@ -168,7 +159,7 @@ const firebaseConfig = {
   measurementId: "G-FKXHY4E8V5"
 };
 
-/* ---------- Firebase modular imports ---------- */
+/* Firebase modular imports */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
@@ -177,7 +168,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ---------- UI references ---------- */
+/* UI refs */
 const hamburger = document.getElementById('hamburger');
 const drawerBackdrop = document.getElementById('drawer-backdrop');
 const drawer = document.getElementById('drawer');
@@ -207,7 +198,7 @@ let data = { date: isoDate(currentDate), tasks: [] };
 let liveTimerInterval = null;
 let currentUser = null;
 
-/* ---------- utilities ---------- */
+/* utilities */
 function isoDate(d){
   const t = new Date(d);
   t.setMinutes(t.getMinutes() - t.getTimezoneOffset());
@@ -224,7 +215,7 @@ function secondsToHHMMSS(sec){
 }
 function percentOfDaySeconds(sec){ return (sec/(24*3600))*100; }
 
-/* ---------- local cache helpers ---------- */
+/* local cache */
 const LOCAL_PREFIX = 'dnt_tasks:';
 function localKeyForDate(dateIso){
   const userPart = currentUser ? `${currentUser.uid}:` : 'guest:';
@@ -239,31 +230,20 @@ function writeLocal(obj){
   localStorage.setItem(localKeyForDate(obj.date), JSON.stringify(obj));
 }
 
-/* ---------- Firestore helpers ---------- */
-function dayDocRef(uid, dateIso){
-  return doc(db, 'users', uid, 'days', dateIso);
-}
+/* Firestore */
+function dayDocRef(uid, dateIso){ return doc(db, 'users', uid, 'days', dateIso); }
 async function readRemoteDay(uid, dateIso){
   try{
     const snap = await getDoc(dayDocRef(uid, dateIso));
     if(snap.exists()) return snap.data();
     return null;
-  }catch(err){
-    console.warn('Firestore read error', err);
-    return null;
-  }
+  }catch(err){ console.warn('Firestore read error', err); return null; }
 }
 async function writeRemoteDay(uid, dayObj){
-  try{
-    await setDoc(dayDocRef(uid, dayObj.date), dayObj);
-    return true;
-  }catch(err){
-    console.warn('Firestore write error', err);
-    return false;
-  }
+  try{ await setDoc(dayDocRef(uid, dayObj.date), dayObj); return true; }catch(err){ console.warn('Firestore write error', err); return false; }
 }
 
-/* ---------- data math ---------- */
+/* data math */
 function durationSecondsForSessions(sessions, dayIso = null){
   let total = 0;
   for(const s of sessions){
@@ -283,7 +263,7 @@ function durationSecondsForSessions(sessions, dayIso = null){
   return Math.max(0, total);
 }
 
-/* ---------- render auth controls (drawer only) ---------- */
+/* Render auth controls (drawer only) */
 function renderAuthControls(){
   drawerAuthArea.innerHTML = '';
   Array.from(controlsInline.querySelectorAll('.auth-btn')).forEach(n => n.remove());
@@ -312,15 +292,13 @@ function renderAuthControls(){
   }
 }
 
-/* ---------- auth modal builder & actions ---------- */
+/* Auth modal builder & actions */
 function openAuthModal(mode='login'){
   const backdrop = document.createElement('div');
   backdrop.style.position = 'fixed';
   backdrop.style.inset = '0';
   backdrop.style.background = 'rgba(0,0,0,0.35)';
   backdrop.style.zIndex = '120';
-  backdrop.tabIndex = -1;
-
   const modal = document.createElement('div');
   modal.style.background = '#fff';
   modal.style.padding = '16px';
@@ -343,7 +321,7 @@ function openAuthModal(mode='login'){
         <button id="m-cancel" class="btn ghost">Cancel</button>
       </div>
     `;
-    backdrop.addEventListener('click', () => closeModal());
+    backdrop.addEventListener('click', closeModal);
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
 
@@ -371,7 +349,7 @@ function openAuthModal(mode='login'){
         <button id="m-cancel" class="btn ghost">Cancel</button>
       </div>
     `;
-    backdrop.addEventListener('click', () => closeModal());
+    backdrop.addEventListener('click', closeModal);
     document.body.appendChild(backdrop);
     document.body.appendChild(modal);
 
@@ -393,70 +371,7 @@ function openAuthModal(mode='login'){
   }
 }
 
-/* ---------- action popover state ---------- */
-let openActionMenu = null; // {taskId, menuEl}
-
-/* show popover */
-function showActionMenu(taskId, anchorEl){
-  if(openActionMenu){ closeActionMenu(); }
-  const task = data.tasks.find(t => t.id === taskId);
-  if(!task) return;
-  const menu = document.createElement('div');
-  menu.className = 'action-menu';
-
-  const btnStart = document.createElement('button'); btnStart.className = 'start'; btnStart.innerText = 'Start';
-  if(hasRunningSession(task)) btnStart.disabled = true;
-  btnStart.addEventListener('click', async ()=> { await startSession(task); closeActionMenu(); });
-
-  const btnEnd = document.createElement('button'); btnEnd.className = 'end'; btnEnd.innerText = 'End';
-  if(!hasRunningSession(task)) btnEnd.disabled = true;
-  btnEnd.addEventListener('click', async ()=> { await endSession(task); closeActionMenu(); });
-
-  const btnDelete = document.createElement('button'); btnDelete.className = 'delete'; btnDelete.innerText = 'Delete';
-  btnDelete.addEventListener('click', async ()=> { if(confirm('Delete this task and its sessions?')){ data.tasks = data.tasks.filter(x=>x.id !== task.id); await saveData(); render(); closeActionMenu(); } });
-
-  menu.appendChild(btnStart); menu.appendChild(btnEnd); menu.appendChild(btnDelete);
-  document.body.appendChild(menu);
-
-  const rect = anchorEl.getBoundingClientRect();
-  const menuRect = menu.getBoundingClientRect();
-  let top = rect.top + window.scrollY + rect.height/2 - menuRect.height/2;
-  let left = rect.right + 8 + window.scrollX;
-  if(left + menuRect.width > window.innerWidth - 8){
-    left = rect.left - 8 - menuRect.width;
-  }
-  if(top < 8) top = 8;
-  if(top + menuRect.height > window.innerHeight - 8) top = window.innerHeight - 8 - menuRect.height;
-  menu.style.top = top + 'px';
-  menu.style.left = left + 'px';
-
-  openActionMenu = { taskId, menuEl: menu };
-  setTimeout(()=> {
-    window.addEventListener('click', outsideClickHandler);
-    window.addEventListener('keydown', escHandler);
-  }, 0);
-
-  function outsideClickHandler(e){
-    if(!menu.contains(e.target) && e.target !== anchorEl) closeActionMenu();
-  }
-  function escHandler(e){
-    if(e.key === 'Escape') closeActionMenu();
-  }
-  openActionMenu.outsideClickHandler = outsideClickHandler;
-  openActionMenu.escHandler = escHandler;
-}
-
-/* close popover */
-function closeActionMenu(){
-  if(!openActionMenu) return;
-  const { menuEl, outsideClickHandler, escHandler } = openActionMenu;
-  if(menuEl && menuEl.parentNode) menuEl.remove();
-  window.removeEventListener('click', outsideClickHandler);
-  window.removeEventListener('keydown', escHandler);
-  openActionMenu = null;
-}
-
-/* Rendering tasks (uses small icon actions button) */
+/* Rendering tasks with stacked buttons */
 function render(){
   const iso = isoDate(currentDate);
   taskListEl.innerHTML = '';
@@ -468,19 +383,19 @@ function render(){
     card.dataset.id = t.id;
 
     const left = document.createElement('div'); left.className = 'task-left';
-    const title = document.createElement('div'); title.className = 'task-title';
-    const running = hasRunningSession(t);
     const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.alignItems='center'; titleRow.style.gap='8px';
+    const running = hasRunningSession(t);
     if(running){
       const dot = document.createElement('span'); dot.className = 'running-dot'; titleRow.appendChild(dot);
     }
-    const titleText = document.createElement('span'); titleText.contentEditable = true; titleText.spellcheck = false; titleText.innerText = t.name || 'Untitled task';
+    const titleText = document.createElement('div'); titleText.contentEditable = true; titleText.spellcheck = false; titleText.innerText = t.name || 'Untitled task';
     titleText.style.outline = 'none';
-    titleText.addEventListener('blur', () => { t.name = titleText.innerText.trim() || 'Untitled task'; saveData(); });
-    titleText.addEventListener('keydown', (ev)=> { if(ev.key === 'Enter'){ ev.preventDefault(); titleText.blur(); } });
+    titleText.style.fontWeight = '700';
+    titleText.style.fontSize = '18px';
+    titleText.addEventListener('blur', ()=> { t.name = titleText.innerText.trim() || 'Untitled task'; saveData(); });
+    titleText.addEventListener('keydown', (ev)=> { if(ev.key === 'Enter'){ ev.preventDefault(); titleText.blur(); }});
     titleRow.appendChild(titleText);
-    title.appendChild(titleRow);
-    left.appendChild(title);
+    left.appendChild(titleRow);
 
     const meta = document.createElement('div'); meta.className = 'task-meta';
     const dur = durationSecondsForSessions(t.sessions || [], iso);
@@ -492,11 +407,42 @@ function render(){
     progressWrap.appendChild(progressInner);
     left.appendChild(progressWrap);
 
+    /* Right: stacked buttons (Start / End / Delete) */
     const right = document.createElement('div'); right.className = 'task-right';
-    const actionsBtn = document.createElement('button'); actionsBtn.className = 'actions-btn'; actionsBtn.setAttribute('aria-label','Task actions');
-    actionsBtn.innerHTML = `<svg class="actions-icon" viewBox="0 0 24 24" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><circle cx="12" cy="5" r="1.5"/><circle cx="12" cy="12" r="1.5"/><circle cx="12" cy="19" r="1.5"/></svg>`;
-    actionsBtn.addEventListener('click', (e) => { e.stopPropagation(); showActionMenu(t.id, actionsBtn); });
-    right.appendChild(actionsBtn);
+
+    const btnStart = document.createElement('button');
+    btnStart.className = 'stack-btn';
+    btnStart.setAttribute('aria-label','Start');
+    btnStart.title = 'Start';
+    btnStart.innerText = '⏵';
+    btnStart.addEventListener('click', async (e) => { e.stopPropagation(); if(hasRunningSession(t)){ alert('Task already running'); return; } await startSession(t); });
+
+    const btnEnd = document.createElement('button');
+    btnEnd.className = 'stack-btn';
+    btnEnd.setAttribute('aria-label','End');
+    btnEnd.title = 'End';
+    btnEnd.innerText = '■';
+    btnEnd.addEventListener('click', async (e) => { e.stopPropagation(); if(!hasRunningSession(t)){ alert('No running session to end'); return; } await endSession(t); });
+
+    const btnDelete = document.createElement('button');
+    btnDelete.className = 'stack-btn';
+    btnDelete.setAttribute('aria-label','Delete');
+    btnDelete.title = 'Delete';
+    btnDelete.innerText = '✕';
+    btnDelete.addEventListener('click', async (e) => { e.stopPropagation(); if(confirm('Delete this task and its sessions?')){ data.tasks = data.tasks.filter(x=>x.id !== t.id); await saveData(); render(); } });
+
+    // disable/enable according to running state
+    if(hasRunningSession(t)){
+      btnStart.disabled = true;
+      btnEnd.disabled = false;
+    } else {
+      btnStart.disabled = false;
+      btnEnd.disabled = true;
+    }
+
+    right.appendChild(btnStart);
+    right.appendChild(btnEnd);
+    right.appendChild(btnDelete);
 
     card.appendChild(left);
     card.appendChild(right);
@@ -545,22 +491,16 @@ async function endSession(task){
   const endTime = new Date();
   const startTime = new Date(s.start);
   if(startTime.toDateString() !== endTime.toDateString()){
-    const endOfStartDay = new Date(startTime);
-    endOfStartDay.setHours(23,59,59,999);
-    s.end = endOfStartDay.toISOString();
-    let nextStart = new Date(startTime);
-    nextStart.setDate(nextStart.getDate() + 1);
-    nextStart.setHours(0,0,0,0);
+    const endOfStartDay = new Date(startTime); endOfStartDay.setHours(23,59,59,999); s.end = endOfStartDay.toISOString();
+    let nextStart = new Date(startTime); nextStart.setDate(nextStart.getDate() + 1); nextStart.setHours(0,0,0,0);
     if(nextStart.toDateString() === endTime.toDateString()){
       task.sessions.push({ start: nextStart.toISOString(), end: endTime.toISOString() });
     } else {
       let cursorStart = new Date(nextStart);
       while(cursorStart.toDateString() !== endTime.toDateString()){
-        const fullDayEnd = new Date(cursorStart);
-        fullDayEnd.setHours(23,59,59,999);
+        const fullDayEnd = new Date(cursorStart); fullDayEnd.setHours(23,59,59,999);
         task.sessions.push({ start: cursorStart.toISOString(), end: fullDayEnd.toISOString() });
-        cursorStart.setDate(cursorStart.getDate() + 1);
-        cursorStart.setHours(0,0,0,0);
+        cursorStart.setDate(cursorStart.getDate() + 1); cursorStart.setHours(0,0,0,0);
       }
       task.sessions.push({ start: cursorStart.toISOString(), end: endTime.toISOString() });
     }
@@ -598,6 +538,13 @@ function updateLiveDisplays(){
     meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`;
     const prog = card.querySelector('.progress > i');
     if(prog) prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%';
+    // update stacked btn state
+    const btns = card.querySelectorAll('.stack-btn');
+    if(btns && btns.length >= 2){
+      const running = hasRunningSession(t);
+      btns[0].disabled = running ? true : false; // start
+      btns[1].disabled = running ? false : true; // end
+    }
   });
   const totalSec = data.tasks.reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions || [], iso), 0);
   totalTimeEl.textContent = 'Total: ' + secondsToHHMMSS(totalSec);
