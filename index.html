@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Daily Non-Negotiable Tasks — Mobile (with Hamburger)</title>
+<title>Daily Non-Negotiable Tasks — Mobile (Firebase + Drawer)</title>
 <style>
   :root{
     --bg:#f7f7f8;
@@ -33,6 +33,7 @@
   .drawer.open{transform:translateX(0)}
   .drawer .section{display:flex;flex-direction:column;gap:8px}
   .drawer .close{align-self:flex-end;padding:6px;border-radius:8px;border:0;background:transparent}
+  .drawer .nav-btn{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;border:0;background:var(--bg);font-weight:700}
   /* main */
   main{display:flex;flex-direction:column;gap:12px;}
   .summary{background:linear-gradient(180deg,#fff,#fbfbfb);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;justify-content:space-between;align-items:center}
@@ -56,20 +57,22 @@
   .inputs{display:flex;gap:8px}
   input[type="text"]{flex:1;padding:10px;border-radius:10px;border:1px solid var(--glass);font-size:15px}
   @media(min-width:720px){ body{max-width:880px;margin:12px auto} .hamburger{display:none} .title-wrap{align-items:flex-start} .controls{display:flex} .drawer-backdrop{display:none} }
+  /* Hide inline nav buttons on small screens (Option A) */
+  @media (max-width: 720px) {
+    #controls-inline button { display: none !important; }
+  }
   /* small utilities */
   .muted{color:var(--muted);font-size:12px}
   .tiny{font-size:11px;color:var(--muted)}
   .running-dot{width:10px;height:10px;border-radius:20px;background:var(--success);display:inline-block;margin-right:6px;box-shadow:0 4px 10px rgba(45,159,106,0.2)}
   footer.smallprint{position:fixed;left:12px;bottom:10px;font-size:12px;color:var(--muted)}
   .user-badge{background:var(--glass);padding:6px 8px;border-radius:999px;color:var(--accent);font-weight:700}
-  .drawer .nav-btn{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;border:0;background:var(--bg);font-weight:700}
 </style>
 </head>
 <body>
 <header>
   <div class="header-left">
     <button class="hamburger" id="hamburger" aria-label="Open menu" title="Menu">
-      <!-- simple hamburger icon -->
       <svg width="20" height="14" viewBox="0 0 20 14" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
         <rect y="0" width="20" height="2" rx="1" fill="#4c5055"/>
         <rect y="6" width="20" height="2" rx="1" fill="#4c5055"/>
@@ -83,7 +86,7 @@
   </div>
 
   <div class="controls" id="controls-inline">
-    <!-- on small screens these will be visually hidden and moved to the drawer; on wide screens they are visible -->
+    <!-- These inline buttons will be hidden on small screens (see CSS). They still exist for desktop -->
     <button class="btn ghost" id="prev-day" title="Previous day">‹</button>
     <button class="btn" id="today" title="Jump to today">Today</button>
     <button class="btn ghost" id="next-day" title="Next day">›</button>
@@ -141,20 +144,13 @@
   <button id="fab-add">+</button>
 </div>
 
-<footer class="smallprint">Saved locally (localStorage). Works offline.</footer>
+<footer class="smallprint">Stored in Firestore when signed in; cached locally when offline.</footer>
 
-<!-- modal and firebase sections omitted from display block below for brevity; they are unchanged in core logic -->
-<!-- For this example we assume the firebase-integrated app code is present below; we only changed header/drawer UI and added drawer event wiring. -->
-
+<!-- modal/backdrop + firebase code -->
 <script type="module">
-/* =================================================================================
-   This script is adapted from your Firebase-integrated app. It preserves all
-   task/session logic and Firebase sync, but adds the hamburger/drawer UI behavior.
-   The code below is self-contained and includes the same functions for tasks + auth
-   as in previous file versions. Replace firebaseConfig with yours (already done earlier).
-   ================================================================================= */
-
-/* --- Firebase config and imports (unchanged) --- */
+/* =========
+   Firebase configuration (your config)
+   ========= */
 const firebaseConfig = {
   apiKey: "AIzaSyBIwCmbfK4949rj4RKLTihhLtsvQzjwU-w",
   authDomain: "dailytasks-64e5a.firebaseapp.com",
@@ -165,15 +161,28 @@ const firebaseConfig = {
   measurementId: "G-FKXHY4E8V5"
 };
 
+/* ---------- Firebase modular imports ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
-import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
-import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
+import {
+  getAuth,
+  onAuthStateChanged,
+  createUserWithEmailAndPassword,
+  signInWithEmailAndPassword,
+  signOut
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
+import {
+  getFirestore,
+  doc,
+  getDoc,
+  setDoc
+} from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
 
+/* Initialize Firebase */
 const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* --- UI refs for both header and drawer --- */
+/* ---------- App state & UI refs ---------- */
 const hamburger = document.getElementById('hamburger');
 const drawerBackdrop = document.getElementById('drawer-backdrop');
 const drawer = document.getElementById('drawer');
@@ -185,7 +194,6 @@ const drawerExport = document.getElementById('drawer-export');
 const drawerClear = document.getElementById('drawer-clear');
 const drawerAuthArea = document.getElementById('drawer-auth-area');
 
-/* --- existing UI refs (main app) --- */
 const dateDisplay = document.getElementById('date-display');
 const taskListEl = document.getElementById('task-list');
 const totalTimeEl = document.getElementById('total-time');
@@ -206,45 +214,75 @@ let data = { date: isoDate(currentDate), tasks: [] };
 let liveTimerInterval = null;
 let currentUser = null;
 
-/* ---------- utility functions (same as previous versions) ---------- */
-function isoDate(d){ const t=new Date(d); t.setMinutes(t.getMinutes()-t.getTimezoneOffset()); return t.toISOString().slice(0,10); }
+/* ---------- Utility functions ---------- */
+function isoDate(d){
+  const t = new Date(d);
+  t.setMinutes(t.getMinutes() - t.getTimezoneOffset());
+  return t.toISOString().slice(0,10);
+}
 function nowISO(){ return new Date().toISOString(); }
 function uid(prefix='id'){ return prefix + '-' + Math.random().toString(36).slice(2,10); }
-function secondsToHHMMSS(sec){ sec=Math.max(0,Math.round(sec)); const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return [h,m,s].map(n=>String(n).padStart(2,'0')).join(':'); }
+function secondsToHHMMSS(sec){
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+  return [h,m,s].map(n=>String(n).padStart(2,'0')).join(':');
+}
 function percentOfDaySeconds(sec){ return (sec/(24*3600))*100; }
-function durationSecondsForSessions(sessions, dayIso=null){
-  let total=0;
+function durationSecondsForSessions(sessions, dayIso = null){
+  let total = 0;
   for(const s of sessions){
     const start = s.start ? new Date(s.start) : null;
     const end = s.end ? new Date(s.end) : new Date();
     if(!start) continue;
     if(dayIso){
-      const dayStart = new Date(dayIso+'T00:00:00');
-      const dayEnd = new Date(dayIso+'T23:59:59.999');
+      const dayStart = new Date(dayIso + 'T00:00:00');
+      const dayEnd = new Date(dayIso + 'T23:59:59.999');
       const segStart = start > dayStart ? start : dayStart;
       const segEnd = end < dayEnd ? end : dayEnd;
-      if(segEnd > segStart) total += (segEnd - segStart)/1000;
+      if(segEnd > segStart) total += (segEnd - segStart) / 1000;
     } else {
-      if(end > start) total += (end - start)/1000;
+      if(end > start) total += (end - start) / 1000;
     }
   }
-  return Math.max(0,total);
+  return Math.max(0, total);
 }
 
-/* ---------- firestore helpers (same pattern) ---------- */
-function dayDocRef(uid, dateIso){ return doc(db,'users',uid,'days',dateIso); }
-async function readRemoteDay(uid, dateIso){ try{ const snap = await getDoc(dayDocRef(uid,dateIso)); return snap.exists()?snap.data():null; }catch(e){ console.warn(e); return null; } }
-async function writeRemoteDay(uid, dayObj){ try{ await setDoc(dayDocRef(uid,dayObj.date), dayObj); return true; }catch(e){ console.warn(e); return false; } }
+/* ---------- Firestore helpers ---------- */
+function dayDocRef(uid, dateIso){ return doc(db, 'users', uid, 'days', dateIso); }
+async function readRemoteDay(uid, dateIso){
+  try{
+    const snap = await getDoc(dayDocRef(uid, dateIso));
+    if(snap.exists()) return snap.data();
+    return null;
+  }catch(err){
+    console.warn('Firestore read error', err);
+    return null;
+  }
+}
+async function writeRemoteDay(uid, dayObj){
+  try{
+    await setDoc(dayDocRef(uid, dayObj.date), dayObj);
+    return true;
+  }catch(err){
+    console.warn('Firestore write error', err);
+    return false;
+  }
+}
 
-/* ---------- local cache helpers ---------- */
+/* ---------- Local cache fallback ---------- */
 const LOCAL_PREFIX = 'dnt_tasks:';
 function localKeyForDate(dateIso){ const userPart = currentUser ? `${currentUser.uid}:` : 'guest:'; return LOCAL_PREFIX + userPart + dateIso; }
-function readLocal(dateIso){ const raw = localStorage.getItem(localKeyForDate(dateIso)); if(!raw) return { date: dateIso, tasks: [] }; try{return JSON.parse(raw);}catch(e){return { date: dateIso, tasks: [] }; } }
+function readLocal(dateIso){
+  const raw = localStorage.getItem(localKeyForDate(dateIso));
+  if(!raw) return { date: dateIso, tasks: [] };
+  try { return JSON.parse(raw); } catch(e) { return { date: dateIso, tasks: [] }; }
+}
 function writeLocal(obj){ localStorage.setItem(localKeyForDate(obj.date), JSON.stringify(obj)); }
 
-/* ---------- rendering and auth UI ---------- */
+/* ---------- Rendering & Auth UI ---------- */
 function renderAuthControls(){
-  // build auth area for drawer
   drawerAuthArea.innerHTML = '';
   Array.from(controlsInline.querySelectorAll('.auth-btn')).forEach(n=>n.remove());
   if(currentUser){
@@ -252,35 +290,29 @@ function renderAuthControls(){
     const badge = document.createElement('div'); badge.className='user-badge auth-btn'; badge.innerText = currentUser.email || currentUser.uid;
     controlsInline.appendChild(badge); controlsInline.appendChild(logout);
     userArea.innerHTML = `<span class="tiny">Signed in</span> <span style="margin-left:8px" class="user-badge">${escapeHtml(currentUser.email || currentUser.uid)}</span>`;
-    // drawer auth area
     const drawerBadge = document.createElement('div'); drawerBadge.className='user-badge'; drawerBadge.innerText = currentUser.email || currentUser.uid;
     const drawerLogout = document.createElement('button'); drawerLogout.className='btn ghost'; drawerLogout.innerText='Logout'; drawerLogout.addEventListener('click', ()=> signOut(auth));
     drawerAuthArea.appendChild(drawerBadge); drawerAuthArea.appendChild(drawerLogout);
   } else {
-    // show Register / Login
     const reg = document.createElement('button'); reg.className='btn ghost auth-btn'; reg.innerText='Register'; reg.addEventListener('click', ()=> openAuthModal('register'));
     const login = document.createElement('button'); login.className='btn auth-btn'; login.innerText='Login'; login.addEventListener('click', ()=> openAuthModal('login'));
     controlsInline.appendChild(reg); controlsInline.appendChild(login);
     userArea.innerHTML = `<span class="tiny muted">Not signed in</span>`;
-    // drawer area
     const drawerReg = reg.cloneNode(true); drawerReg.addEventListener('click', ()=> openAuthModal('register'));
     const drawerLogin = login.cloneNode(true); drawerLogin.addEventListener('click', ()=> openAuthModal('login'));
     drawerAuthArea.appendChild(drawerLogin); drawerAuthArea.appendChild(drawerReg);
   }
 }
 
-/* ---------- auth modal (same pattern as previous file) ---------- */
-const modalBackdrop = document.createElement('div'); // basic on-demand modal creation
-modalBackdrop.style.display='none';
-/* For brevity we reuse the previous auth modal approach inline when needed. Implementations unchanged. */
+/* ---------- Simple modal builder for auth ---------- */
 function openAuthModal(mode='login'){
-  // build a quick modal overlay in-place for sign-in/register
-  modalBackdrop.style.position='fixed'; modalBackdrop.style.inset='0'; modalBackdrop.style.background='rgba(0,0,0,0.35)'; modalBackdrop.style.zIndex='120'; modalBackdrop.addEventListener('click', closeModal);
+  const modalBackdrop = document.createElement('div');
+  modalBackdrop.style.position='fixed'; modalBackdrop.style.inset='0'; modalBackdrop.style.background='rgba(0,0,0,0.35)'; modalBackdrop.style.zIndex='120';
   const modal = document.createElement('div'); modal.style.background='#fff'; modal.style.padding='16px'; modal.style.borderRadius='10px'; modal.style.width='92%'; modal.style.maxWidth='420px'; modal.style.margin='8% auto'; modal.setAttribute('role','dialog');
   if(mode==='register'){
-    modal.innerHTML=`<h3>Create account</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-create" class="btn">Create</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`; 
+    modal.innerHTML=`<h3>Create account</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-create" class="btn">Create</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
     document.body.appendChild(modalBackdrop); document.body.appendChild(modal);
-    modalBackdrop.style.display='block';
+    modalBackdrop.addEventListener('click', closeModal);
     document.getElementById('m-cancel').addEventListener('click', closeModal);
     document.getElementById('m-create').addEventListener('click', async ()=>{
       const e=document.getElementById('m-email').value.trim(), p=document.getElementById('m-pass').value;
@@ -290,7 +322,7 @@ function openAuthModal(mode='login'){
   } else {
     modal.innerHTML=`<h3>Login</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-login" class="btn">Login</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
     document.body.appendChild(modalBackdrop); document.body.appendChild(modal);
-    modalBackdrop.style.display='block';
+    modalBackdrop.addEventListener('click', closeModal);
     document.getElementById('m-cancel').addEventListener('click', closeModal);
     document.getElementById('m-login').addEventListener('click', async ()=>{
       const e=document.getElementById('m-email').value.trim(), p=document.getElementById('m-pass').value;
@@ -298,10 +330,10 @@ function openAuthModal(mode='login'){
       try{ await signInWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert(err.message||err); }
     });
   }
-  function closeModal(){ modalBackdrop.style.display='none'; if(modal.parentNode) modal.remove(); if(modalBackdrop.parentNode) modalBackdrop.remove(); }
+  function closeModal(){ if(modal.parentNode) modal.remove(); if(modalBackdrop.parentNode) modalBackdrop.remove(); }
 }
 
-/* ---------- tasks rendering (same logic, preserved) ---------- */
+/* ---------- Task rendering & session helpers ---------- */
 function render(){
   const iso = isoDate(currentDate);
   taskListEl.innerHTML = '';
@@ -335,75 +367,127 @@ function render(){
   totalTimeEl.textContent='Total: '+secondsToHHMMSS(totalSec);
   totalPercentEl.textContent= percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
 }
-
-/* ---------- session helpers (unchanged) ---------- */
 function lastSessionTimesText(task, dayIso){
   const iso = dayIso || isoDate(currentDate);
-  const sessions = (task.sessions||[]).slice().reverse();
+  const sessions = (task.sessions || []).slice().reverse();
   for(const s of sessions){
-    const start = s.start ? new Date(s.start):null; const end = s.end ? new Date(s.end) : (s.start? new Date():null);
+    const start = s.start ? new Date(s.start) : null;
+    const end = s.end ? new Date(s.end) : (s.start ? new Date() : null);
     if(!start) continue;
-    const dayStart=new Date(iso+'T00:00:00'); const dayEnd=new Date(iso+'T23:59:59.999');
-    const segStart = start>dayStart?start:dayStart; const segEnd = end<dayEnd?end:dayEnd;
-    if(segEnd>segStart) return `Start: ${segStart.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} • End: ${s.end?segEnd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—'}`;
+    const dayStart = new Date(iso + 'T00:00:00');
+    const dayEnd = new Date(iso + 'T23:59:59.999');
+    const segStart = start > dayStart ? start : dayStart;
+    const segEnd = end < dayEnd ? end : dayEnd;
+    if(segEnd > segStart){
+      return `Start: ${segStart.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} • End: ${s.end ? segEnd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}`;
+    }
   }
   return 'Start: — • End: —';
 }
-function hasRunningSession(task){ return (task.sessions||[]).some(s=>s.start && !s.end); }
+function hasRunningSession(task){ return (task.sessions||[]).some(s => s.start && !s.end); }
 
 async function startSession(task){
   if(hasRunningSession(task)){ alert('This task already has a running session. End it first.'); return; }
-  const s ={ start: nowISO(), end:null }; task.sessions=task.sessions||[]; task.sessions.push(s); await saveData(); render();
+  const s = { start: nowISO(), end: null };
+  task.sessions = task.sessions || [];
+  task.sessions.push(s);
+  await saveData();
+  render();
 }
 async function endSession(task){
-  const sessions = task.sessions || []; const idx = sessions.map(s=>s.start && !s.end?1:0).lastIndexOf(1);
-  if(idx===-1){ alert('No running session found.'); return; }
-  const s = sessions[idx]; const endTime = new Date(); const startTime = new Date(s.start);
+  const sessions = task.sessions || [];
+  const idx = sessions.map(s=>s.start && !s.end ? 1:0).lastIndexOf(1);
+  if(idx === -1){ alert('No running session found.'); return; }
+  const s = sessions[idx];
+  const endTime = new Date();
+  const startTime = new Date(s.start);
   if(startTime.toDateString() !== endTime.toDateString()){
     const endOfStartDay = new Date(startTime); endOfStartDay.setHours(23,59,59,999); s.end = endOfStartDay.toISOString();
-    let nextStart = new Date(startTime); nextStart.setDate(nextStart.getDate()+1); nextStart.setHours(0,0,0,0);
+    let nextStart = new Date(startTime); nextStart.setDate(nextStart.getDate() + 1); nextStart.setHours(0,0,0,0);
     if(nextStart.toDateString() === endTime.toDateString()){
       task.sessions.push({ start: nextStart.toISOString(), end: endTime.toISOString() });
     } else {
       let cursorStart = new Date(nextStart);
       while(cursorStart.toDateString() !== endTime.toDateString()){
-        const fullDayEnd = new Date(cursorStart); fullDayEnd.setHours(23,59,59,999); task.sessions.push({ start: cursorStart.toISOString(), end: fullDayEnd.toISOString() });
-        cursorStart.setDate(cursorStart.getDate()+1); cursorStart.setHours(0,0,0,0);
+        const fullDayEnd = new Date(cursorStart); fullDayEnd.setHours(23,59,59,999);
+        task.sessions.push({ start: cursorStart.toISOString(), end: fullDayEnd.toISOString() });
+        cursorStart.setDate(cursorStart.getDate() + 1);
+        cursorStart.setHours(0,0,0,0);
       }
       task.sessions.push({ start: cursorStart.toISOString(), end: endTime.toISOString() });
     }
   } else {
     s.end = endTime.toISOString();
   }
-  await saveData(); render();
+  await saveData();
+  render();
 }
 
-/* ---------- add task & persistence (local + firestore) ---------- */
-const ONE_DAY_SECONDS = 24*3600;
-async function addTask(name){ const trimmed = (name||'').trim(); if(!trimmed) return; const newTask = { id: uid('task'), name: trimmed, sessions: [], createdAt: new Date().toISOString() }; data.tasks.push(newTask); await saveData(); render(); newTaskInput.value=''; newTaskInput.focus(); }
-
-async function saveData(){
-  // write local cache first
-  writeLocal(data);
-  // if signed in, also write remote
-  if(currentUser) await writeRemoteDay(currentUser.uid, data);
+/* ---------- add task & persistence ---------- */
+async function addTask(name){
+  const trimmed = (name || '').trim();
+  if(!trimmed) return;
+  const newTask = { id: uid('task'), name: trimmed, sessions: [], createdAt: new Date().toISOString() };
+  data.tasks.push(newTask);
+  await saveData();
+  render();
+  newTaskInput.value = '';
+  newTaskInput.focus();
 }
 
-function startLiveTimer(){ if(liveTimerInterval) clearInterval(liveTimerInterval); liveTimerInterval = setInterval(()=> updateLiveDisplays(), 1000); }
-function updateLiveDisplays(){ const iso=isoDate(currentDate); const cards=document.querySelectorAll('.task-card'); data.tasks.forEach(t=>{ const card = Array.from(cards).find(c=>c.dataset.id===t.id); if(!card) return; const meta = card.querySelector('.task-meta'); const dur = durationSecondsForSessions(t.sessions||[], iso); meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`; const prog = card.querySelector('.progress > i'); if(prog) prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%'; const btnStart = card.querySelector('.btn-start'); const running = hasRunningSession(t); btnStart.disabled = running; btnStart.innerText = running ? 'Running' : 'Start'; }); const totalSec=(data.tasks||[]).reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions||[], iso),0); totalTimeEl.textContent = 'Total: '+secondsToHHMMSS(totalSec); totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours'; }
+function startLiveTimer(){
+  if(liveTimerInterval) clearInterval(liveTimerInterval);
+  liveTimerInterval = setInterval(()=> {
+    updateLiveDisplays();
+  }, 1000);
+}
+function updateLiveDisplays(){
+  const iso = isoDate(currentDate);
+  const cards = document.querySelectorAll('.task-card');
+  data.tasks.forEach(t => {
+    const card = Array.from(cards).find(c => c.dataset.id === t.id);
+    if(!card) return;
+    const meta = card.querySelector('.task-meta');
+    const dur = durationSecondsForSessions(t.sessions || [], iso);
+    meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`;
+    const prog = card.querySelector('.progress > i');
+    if(prog) { prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%'; }
+    const btnStart = card.querySelector('.btn-start');
+    const running = hasRunningSession(t);
+    btnStart.disabled = running;
+    btnStart.innerText = running ? 'Running' : 'Start';
+  });
+  const totalSec = data.tasks.reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions || [], iso), 0);
+  totalTimeEl.textContent = 'Total: ' + secondsToHHMMSS(totalSec);
+  totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
+}
 
-/* ---------- load date (local + remote merge) ---------- */
+/* ---------- load/save day (local + remote) ---------- */
 async function loadDate(d){
   currentDate = new Date(d);
   const iso = isoDate(currentDate);
-  dateDisplay.textContent = new Date(currentDate).toLocaleDateString(undefined, { weekday:'short', month:'short', day:'numeric', year:'numeric' });
+  dateDisplay.textContent = new Date(currentDate).toLocaleDateString(undefined, { weekday: 'short', month:'short', day:'numeric', year:'numeric' });
   if(currentUser){
     const remote = await readRemoteDay(currentUser.uid, iso);
-    if(remote){ data = remote; writeLocal(data); } else { data = readLocal(iso); await writeRemoteDay(currentUser.uid, data); }
+    if(remote){
+      data = remote;
+      writeLocal(data);
+    } else {
+      data = readLocal(iso);
+      await writeRemoteDay(currentUser.uid, data);
+    }
   } else {
     data = readLocal(iso);
   }
-  render(); startLiveTimer(); renderAuthControls();
+  render();
+  startLiveTimer();
+  renderAuthControls();
+}
+async function saveData(){
+  writeLocal(data);
+  if(currentUser){
+    await writeRemoteDay(currentUser.uid, data);
+  }
 }
 
 /* ---------- CSV export & clear ---------- */
@@ -414,23 +498,33 @@ function exportCsvForDate(dateIso){
     for(const s of (t.sessions||[])){
       const dur = durationSecondsForSessions([s], dateIso);
       if(dur <= 0) continue;
-      rows.push([t.name, s.start||'', s.end||'', String(Math.round(dur)), secondsToHHMMSS(dur), percentOfDaySeconds(dur).toFixed(4)+'%']);
+      rows.push([t.name, s.start || '', s.end || '', String(Math.round(dur)), secondsToHHMMSS(dur), percentOfDaySeconds(dur).toFixed(4) + '%']);
     }
   }
-  const csv = rows.map(r=> r.map(cell=> `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`dnt_${currentUser?currentUser.uid:'guest'}_${dateIso}.csv`; a.click(); URL.revokeObjectURL(url);
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dnt_${currentUser?currentUser.uid:'guest'}_${dateIso}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
 }
-async function clearDay(dateIso){ if(!confirm('Clear all tasks & sessions for this day?')) return; data={date:dateIso,tasks:[]}; await saveData(); render(); }
+async function clearDay(dateIso){
+  if(!confirm('Clear all tasks & sessions for this day? This cannot be undone.')) return;
+  data = { date: dateIso, tasks: [] };
+  await saveData();
+  render();
+}
 
-/* ---------- nav helpers ---------- */
-async function shiftDays(delta){ const d=new Date(currentDate); d.setDate(d.getDate()+delta); await loadDate(d); }
+/* ---------- navigation ---------- */
+async function shiftDays(delta){ const d = new Date(currentDate); d.setDate(d.getDate() + delta); await loadDate(d); }
 async function jumpToToday(){ await loadDate(new Date()); }
 
-/* ---------- events: top-level UI ---------- */
+/* ---------- events ---------- */
 addTaskBtn.addEventListener('click', ()=> addTask(newTaskInput.value));
 fabAdd.addEventListener('click', ()=> addTask(newTaskInput.value || 'New Task'));
-newTaskInput.addEventListener('keydown', (e)=> { if(e.key==='Enter') addTask(newTaskInput.value); });
+newTaskInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter') addTask(newTaskInput.value); });
 prevBtn.addEventListener('click', ()=> shiftDays(-1));
 nextBtn.addEventListener('click', ()=> shiftDays(1));
 todayBtn.addEventListener('click', ()=> jumpToToday());
@@ -450,13 +544,19 @@ drawerClear.addEventListener('click', ()=> { clearDay(isoDate(currentDate)); clo
 function openDrawer(){ drawerBackdrop.style.display='block'; drawerBackdrop.setAttribute('aria-hidden','false'); setTimeout(()=> drawer.classList.add('open'), 10); }
 function closeDrawer(){ drawer.classList.remove('open'); drawerBackdrop.setAttribute('aria-hidden','true'); setTimeout(()=> drawerBackdrop.style.display='none', 240); }
 
-/* ---------- auth state listener (sync on sign-in) ---------- */
+/* ---------- auth listener & sync ---------- */
 onAuthStateChanged(auth, async (user) => {
   if(user){
     currentUser = user;
     const iso = isoDate(currentDate);
     const remote = await readRemoteDay(currentUser.uid, iso);
-    if(remote){ data = remote; writeLocal(data); } else { data = readLocal(iso); await writeRemoteDay(currentUser.uid, data); }
+    if(remote){
+      data = remote;
+      writeLocal(data);
+    } else {
+      data = readLocal(iso);
+      await writeRemoteDay(currentUser.uid, data);
+    }
   } else {
     currentUser = null;
     data = readLocal(isoDate(currentDate));
@@ -466,7 +566,10 @@ onAuthStateChanged(auth, async (user) => {
 });
 
 /* ---------- init ---------- */
-(async function init(){ renderAuthControls(); await loadDate(new Date()); })();
+(async function init(){
+  renderAuthControls();
+  await loadDate(new Date());
+})();
 
 /* ---------- helper ---------- */
 function escapeHtml(str){ return String(str).replace(/[&<>"']/g,(m)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]) ); }
