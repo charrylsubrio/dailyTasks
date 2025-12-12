@@ -3,15 +3,15 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Daily Non-Negotiable Tasks — Stacked Actions</title>
+<title>Daily Non-Negotiable Tasks — Horizontal Action Buttons</title>
 <style>
   :root{
     --bg:#f7f7f8;
     --panel:#ffffff;
     --muted:#6b6f73;
     --accent:#4c5055;
-    --success:#2d9f6a;
-    --danger:#e25353;
+    --success:#2d9f6a; /* green start */
+    --danger:#e25353;  /* red end */
     --glass: rgba(76,80,85,0.06);
   }
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
@@ -40,17 +40,18 @@
   .big{font-size:16px;font-weight:700;color:var(--accent)}
   .small{font-size:12px;color:var(--muted)}
   .task-list{display:flex;flex-direction:column;gap:10px;margin-bottom:88px}
-  /* slimmer task card + stacked buttons */
-  .task-card{background:var(--panel);padding:10px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;flex-direction:row;gap:12px;align-items:flex-start;position:relative}
-  .task-left{flex:1;display:flex;flex-direction:column;gap:6px;padding-right:12px}
+  /* task card with horizontal actions */
+  .task-card{background:var(--panel);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;flex-direction:row;gap:12px;align-items:flex-start;position:relative}
+  .task-left{flex:1;display:flex;flex-direction:column;gap:8px;padding-right:8px}
   .task-title{font-weight:700;color:#111;font-size:18px}
   .task-meta{font-size:12px;color:var(--muted)}
-  .task-right{display:flex;flex-direction:column;align-items:center;gap:8px;min-width:44px}
-  .stack-btn{width:44px;height:44px;border-radius:12px;border:0;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700}
-  .stack-btn[aria-label="Start"]{background:linear-gradient(90deg,var(--accent),#2f3336);color:#fff}
-  .stack-btn[aria-label="End"]{background:var(--danger);color:#fff}
-  .stack-btn[aria-label="Delete"]{background:#fff;border:1px solid var(--glass);color:var(--muted)}
-  .stack-btn:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
+  .task-right{display:flex;flex-direction:row;align-items:center;gap:8px}
+  .action-btn{width:44px;height:44px;border-radius:12px;border:0;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,0.05);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700}
+  .action-btn.start{background:linear-gradient(180deg,var(--success),#1f7a45);color:#fff}
+  .action-btn.end{background:linear-gradient(180deg,var(--danger),#c24343);color:#fff}
+  .action-btn.del{background:#fff;border:1px solid var(--glass);color:var(--muted)}
+  .action-btn:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
+  .action-icon{width:18px;height:18px;display:block}
   .progress{height:8px;background:var(--glass);border-radius:6px;overflow:hidden;margin-top:6px}
   .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#6b6f73);width:0%}
   .fab{position:fixed;right:16px;bottom:18px;z-index:30}
@@ -88,11 +89,9 @@
   </div>
 
   <div class="controls" id="controls-inline">
-    <!-- Navigation buttons are hidden on small screens (moved to drawer) -->
     <button class="btn ghost" id="prev-day" title="Previous day">‹</button>
     <button class="btn" id="today" title="Jump to today">Today</button>
     <button class="btn ghost" id="next-day" title="Next day">›</button>
-    <!-- Header intentionally does not show user email/badge -->
     <div id="user-area"></div>
   </div>
 </header>
@@ -122,7 +121,6 @@
 </div>
 
 <main>
-  <!-- Slimmed summary: no Export/Clear in the card -->
   <div class="summary" aria-live="polite">
     <div class="left">
       <div class="big" id="total-time">Total: 00:00:00</div>
@@ -148,7 +146,7 @@
 
 <!-- Firebase + app logic -->
 <script type="module">
-/* ========= Firebase configuration (replaceable) ========= */
+/* Firebase config */
 const firebaseConfig = {
   apiKey: "AIzaSyBIwCmbfK4949rj4RKLTihhLtsvQzjwU-w",
   authDomain: "dailytasks-64e5a.firebaseapp.com",
@@ -263,115 +261,46 @@ function durationSecondsForSessions(sessions, dayIso = null){
   return Math.max(0, total);
 }
 
-/* Render auth controls (drawer only) */
+/* render auth controls (drawer only) */
 function renderAuthControls(){
   drawerAuthArea.innerHTML = '';
   Array.from(controlsInline.querySelectorAll('.auth-btn')).forEach(n => n.remove());
   userArea.innerHTML = '';
   if(currentUser){
-    const drawerBadge = document.createElement('div');
-    drawerBadge.className = 'user-badge';
-    drawerBadge.innerText = currentUser.email || currentUser.uid;
-    const drawerLogout = document.createElement('button');
-    drawerLogout.className = 'btn ghost';
-    drawerLogout.innerText = 'Logout';
-    drawerLogout.addEventListener('click', async () => { await signOut(auth); });
-    drawerAuthArea.appendChild(drawerBadge);
-    drawerAuthArea.appendChild(drawerLogout);
+    const drawerBadge = document.createElement('div'); drawerBadge.className = 'user-badge'; drawerBadge.innerText = currentUser.email || currentUser.uid;
+    const drawerLogout = document.createElement('button'); drawerLogout.className = 'btn ghost'; drawerLogout.innerText = 'Logout'; drawerLogout.addEventListener('click', async ()=> { await signOut(auth); });
+    drawerAuthArea.appendChild(drawerBadge); drawerAuthArea.appendChild(drawerLogout);
   } else {
-    const drawerLogin = document.createElement('button');
-    drawerLogin.className = 'btn auth-btn';
-    drawerLogin.innerText = 'Login';
-    drawerLogin.addEventListener('click', () => openAuthModal('login'));
-    const drawerReg = document.createElement('button');
-    drawerReg.className = 'btn ghost auth-btn';
-    drawerReg.innerText = 'Register';
-    drawerReg.addEventListener('click', () => openAuthModal('register'));
-    drawerAuthArea.appendChild(drawerLogin);
-    drawerAuthArea.appendChild(drawerReg);
+    const drawerLogin = document.createElement('button'); drawerLogin.className = 'btn auth-btn'; drawerLogin.innerText = 'Login'; drawerLogin.addEventListener('click', ()=> openAuthModal('login'));
+    const drawerReg = document.createElement('button'); drawerReg.className = 'btn ghost auth-btn'; drawerReg.innerText = 'Register'; drawerReg.addEventListener('click', ()=> openAuthModal('register'));
+    drawerAuthArea.appendChild(drawerLogin); drawerAuthArea.appendChild(drawerReg);
   }
 }
 
-/* Auth modal builder & actions */
+/* auth modal builder */
 function openAuthModal(mode='login'){
   const backdrop = document.createElement('div');
-  backdrop.style.position = 'fixed';
-  backdrop.style.inset = '0';
-  backdrop.style.background = 'rgba(0,0,0,0.35)';
-  backdrop.style.zIndex = '120';
-  const modal = document.createElement('div');
-  modal.style.background = '#fff';
-  modal.style.padding = '16px';
-  modal.style.borderRadius = '10px';
-  modal.style.width = '92%';
-  modal.style.maxWidth = '420px';
-  modal.style.margin = '8% auto';
-  modal.setAttribute('role','dialog');
+  backdrop.style.position = 'fixed'; backdrop.style.inset = '0'; backdrop.style.background = 'rgba(0,0,0,0.35)'; backdrop.style.zIndex = '120';
+  const modal = document.createElement('div'); modal.style.background = '#fff'; modal.style.padding = '16px'; modal.style.borderRadius = '10px'; modal.style.width = '92%'; modal.style.maxWidth = '420px'; modal.style.margin = '8% auto'; modal.setAttribute('role','dialog');
 
   if(mode === 'register'){
-    modal.innerHTML = `
-      <h3>Create account</h3>
-      <div style="margin-top:8px">
-        <input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-        <div style="height:8px"></div>
-        <input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button id="m-create" class="btn">Create</button>
-        <button id="m-cancel" class="btn ghost">Cancel</button>
-      </div>
-    `;
+    modal.innerHTML = `<h3>Create account</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-create" class="btn">Create</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
     backdrop.addEventListener('click', closeModal);
-    document.body.appendChild(backdrop);
-    document.body.appendChild(modal);
-
+    document.body.appendChild(backdrop); document.body.appendChild(modal);
     document.getElementById('m-cancel').addEventListener('click', closeModal);
-    document.getElementById('m-create').addEventListener('click', async () => {
-      const e = document.getElementById('m-email').value.trim();
-      const p = document.getElementById('m-pass').value;
-      if(!e || !p || p.length < 6){ alert('Provide email and password (min 6).'); return; }
-      try{
-        await createUserWithEmailAndPassword(auth, e, p);
-        closeModal();
-      }catch(err){ alert('Register error: ' + (err.message || err)); }
-    });
-
+    document.getElementById('m-create').addEventListener('click', async ()=>{ const e=document.getElementById('m-email').value.trim(); const p=document.getElementById('m-pass').value; if(!e||!p||p.length<6){ alert('Provide email and password (min 6).'); return; } try{ await createUserWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert('Register error: ' + (err.message || err)); }});
   } else {
-    modal.innerHTML = `
-      <h3>Login</h3>
-      <div style="margin-top:8px">
-        <input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-        <div style="height:8px"></div>
-        <input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button id="m-login" class="btn">Login</button>
-        <button id="m-cancel" class="btn ghost">Cancel</button>
-      </div>
-    `;
+    modal.innerHTML = `<h3>Login</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-login" class="btn">Login</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
     backdrop.addEventListener('click', closeModal);
-    document.body.appendChild(backdrop);
-    document.body.appendChild(modal);
-
+    document.body.appendChild(backdrop); document.body.appendChild(modal);
     document.getElementById('m-cancel').addEventListener('click', closeModal);
-    document.getElementById('m-login').addEventListener('click', async () => {
-      const e = document.getElementById('m-email').value.trim();
-      const p = document.getElementById('m-pass').value;
-      if(!e || !p){ alert('Provide email & password.'); return; }
-      try{
-        await signInWithEmailAndPassword(auth, e, p);
-        closeModal();
-      }catch(err){ alert('Login error: ' + (err.message || err)); }
-    });
+    document.getElementById('m-login').addEventListener('click', async ()=>{ const e=document.getElementById('m-email').value.trim(); const p=document.getElementById('m-pass').value; if(!e||!p){ alert('Provide email & password.'); return; } try{ await signInWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert('Login error: ' + (err.message || err)); }});
   }
 
-  function closeModal(){
-    if(modal.parentNode) modal.remove();
-    if(backdrop.parentNode) backdrop.remove();
-  }
+  function closeModal(){ if(modal.parentNode) modal.remove(); if(backdrop.parentNode) backdrop.remove(); }
 }
 
-/* Rendering tasks with stacked buttons */
+/* Render tasks with horizontal action buttons */
 function render(){
   const iso = isoDate(currentDate);
   taskListEl.innerHTML = '';
@@ -407,31 +336,40 @@ function render(){
     progressWrap.appendChild(progressInner);
     left.appendChild(progressWrap);
 
-    /* Right: stacked buttons (Start / End / Delete) */
+    /* Right: horizontal icons (Start / End / Delete) */
     const right = document.createElement('div'); right.className = 'task-right';
 
+    /* START button (green) with SVG play */
     const btnStart = document.createElement('button');
-    btnStart.className = 'stack-btn';
+    btnStart.className = 'action-btn start';
     btnStart.setAttribute('aria-label','Start');
     btnStart.title = 'Start';
-    btnStart.innerText = '⏵';
+    btnStart.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M5 3v18l15-9L5 3z" fill="white"/>
+    </svg>`;
     btnStart.addEventListener('click', async (e) => { e.stopPropagation(); if(hasRunningSession(t)){ alert('Task already running'); return; } await startSession(t); });
 
+    /* END button (red) with square icon */
     const btnEnd = document.createElement('button');
-    btnEnd.className = 'stack-btn';
+    btnEnd.className = 'action-btn end';
     btnEnd.setAttribute('aria-label','End');
     btnEnd.title = 'End';
-    btnEnd.innerText = '■';
+    btnEnd.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <rect x="5" y="5" width="14" height="14" fill="white"/>
+    </svg>`;
     btnEnd.addEventListener('click', async (e) => { e.stopPropagation(); if(!hasRunningSession(t)){ alert('No running session to end'); return; } await endSession(t); });
 
-    const btnDelete = document.createElement('button');
-    btnDelete.className = 'stack-btn';
-    btnDelete.setAttribute('aria-label','Delete');
-    btnDelete.title = 'Delete';
-    btnDelete.innerText = '✕';
-    btnDelete.addEventListener('click', async (e) => { e.stopPropagation(); if(confirm('Delete this task and its sessions?')){ data.tasks = data.tasks.filter(x=>x.id !== t.id); await saveData(); render(); } });
+    /* DELETE button (neutral) with X icon */
+    const btnDel = document.createElement('button');
+    btnDel.className = 'action-btn del';
+    btnDel.setAttribute('aria-label','Delete');
+    btnDel.title = 'Delete';
+    btnDel.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
+      <path d="M6 6L18 18M6 18L18 6" stroke="#4c5055" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
+    </svg>`;
+    btnDel.addEventListener('click', async (e) => { e.stopPropagation(); if(confirm('Delete this task and its sessions?')){ data.tasks = data.tasks.filter(x=>x.id !== t.id); await saveData(); render(); } });
 
-    // disable/enable according to running state
+    // set enabled/disabled depending on running state
     if(hasRunningSession(t)){
       btnStart.disabled = true;
       btnEnd.disabled = false;
@@ -442,7 +380,7 @@ function render(){
 
     right.appendChild(btnStart);
     right.appendChild(btnEnd);
-    right.appendChild(btnDelete);
+    right.appendChild(btnDel);
 
     card.appendChild(left);
     card.appendChild(right);
@@ -538,12 +476,12 @@ function updateLiveDisplays(){
     meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`;
     const prog = card.querySelector('.progress > i');
     if(prog) prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%';
-    // update stacked btn state
-    const btns = card.querySelectorAll('.stack-btn');
+    // update action button states
+    const btns = card.querySelectorAll('.action-btn');
     if(btns && btns.length >= 2){
       const running = hasRunningSession(t);
-      btns[0].disabled = running ? true : false; // start
-      btns[1].disabled = running ? false : true; // end
+      btns[0].disabled = running ? true : false;
+      btns[1].disabled = running ? false : true;
     }
   });
   const totalSec = data.tasks.reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions || [], iso), 0);
