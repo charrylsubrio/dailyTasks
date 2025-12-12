@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Daily Non-Negotiable Tasks — Mobile (Hamburger, no header email)</title>
+<title>Daily Non-Negotiable Tasks — Mobile (Slim Summary)</title>
 <style>
   :root{
     --bg:#f7f7f8;
@@ -29,7 +29,7 @@
   button.ghost{background:transparent;color:var(--accent);border:1px solid var(--glass)}
   /* Drawer */
   .drawer-backdrop{position:fixed;inset:0;display:none;background:rgba(0,0,0,0.35);z-index:80}
-  .drawer{position:fixed;left:0;top:0;bottom:0;width:280px;background:var(--panel);box-shadow:8px 0 30px rgba(0,0,0,0.12);transform:translateX(-110%);transition:transform .22s ease;z-index:90;padding:14px;display:flex;flex-direction:column;gap:12px}
+  .drawer{position:fixed;left:0;top:0;bottom:0;width:300px;background:var(--panel);box-shadow:8px 0 30px rgba(0,0,0,0.12);transform:translateX(-110%);transition:transform .22s ease;z-index:90;padding:14px;display:flex;flex-direction:column;gap:12px}
   .drawer.open{transform:translateX(0)}
   .drawer .section{display:flex;flex-direction:column;gap:8px}
   .drawer .close{align-self:flex-end;padding:6px;border-radius:8px;border:0;background:transparent}
@@ -90,8 +90,8 @@
     <button class="btn ghost" id="prev-day" title="Previous day">‹</button>
     <button class="btn" id="today" title="Jump to today">Today</button>
     <button class="btn ghost" id="next-day" title="Next day">›</button>
-    <!-- Header will NOT show the user's email badge here to avoid overlap -->
-    <div id="user-area"><!-- intentionally empty on small screens; badge is in drawer --></div>
+    <!-- Header intentionally does not show user email/badge -->
+    <div id="user-area"></div>
   </div>
 </header>
 
@@ -120,14 +120,11 @@
 </div>
 
 <main>
+  <!-- Slimmed summary: no Export/Clear in the card -->
   <div class="summary" aria-live="polite">
     <div class="left">
       <div class="big" id="total-time">Total: 00:00:00</div>
       <div class="small" id="total-percent">0.00% of 24 hours</div>
-    </div>
-    <div style="display:flex;flex-direction:column;align-items:flex-end;gap:6px">
-      <button class="btn ghost" id="export-csv">Export CSV</button>
-      <button class="btn" id="clear-day" title="Clear tasks for shown day">Clear</button>
     </div>
   </div>
 
@@ -147,9 +144,12 @@
 
 <footer class="smallprint">Saved locally (localStorage). Works offline.</footer>
 
-<!-- modal and firebase sections are included below -->
+<!-- Modal/backdrop container used by auth modal builder in script -->
+<div id="modal-root" style="display:none"></div>
+
+<!-- Firebase + app logic -->
 <script type="module">
-/* Firebase config (already provided) */
+/* ========= Firebase configuration (replaceable) ========= */
 const firebaseConfig = {
   apiKey: "AIzaSyBIwCmbfK4949rj4RKLTihhLtsvQzjwU-w",
   authDomain: "dailytasks-64e5a.firebaseapp.com",
@@ -160,7 +160,7 @@ const firebaseConfig = {
   measurementId: "G-FKXHY4E8V5"
 };
 
-/* Firebase imports (modular) */
+/* ---------- Firebase modular imports ---------- */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
@@ -169,7 +169,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* UI refs */
+/* ---------- UI references ---------- */
 const hamburger = document.getElementById('hamburger');
 const drawerBackdrop = document.getElementById('drawer-backdrop');
 const drawer = document.getElementById('drawer');
@@ -191,8 +191,6 @@ const fabAdd = document.getElementById('fab-add');
 const prevBtn = document.getElementById('prev-day');
 const nextBtn = document.getElementById('next-day');
 const todayBtn = document.getElementById('today');
-const exportCsvBtn = document.getElementById('export-csv');
-const clearDayBtn = document.getElementById('clear-day');
 const controlsInline = document.getElementById('controls-inline');
 const userArea = document.getElementById('user-area');
 
@@ -201,171 +199,447 @@ let data = { date: isoDate(currentDate), tasks: [] };
 let liveTimerInterval = null;
 let currentUser = null;
 
-/* Utility */
-function isoDate(d){ const t=new Date(d); t.setMinutes(t.getMinutes()-t.getTimezoneOffset()); return t.toISOString().slice(0,10); }
+/* ---------- utilities ---------- */
+function isoDate(d){
+  const t = new Date(d);
+  t.setMinutes(t.getMinutes() - t.getTimezoneOffset());
+  return t.toISOString().slice(0,10);
+}
 function nowISO(){ return new Date().toISOString(); }
 function uid(prefix='id'){ return prefix + '-' + Math.random().toString(36).slice(2,10); }
-function secondsToHHMMSS(sec){ sec=Math.max(0,Math.round(sec)); const h=Math.floor(sec/3600), m=Math.floor((sec%3600)/60), s=sec%60; return [h,m,s].map(n=>String(n).padStart(2,'0')).join(':'); }
+function secondsToHHMMSS(sec){
+  sec = Math.max(0, Math.round(sec));
+  const h = Math.floor(sec/3600);
+  const m = Math.floor((sec%3600)/60);
+  const s = sec%60;
+  return [h,m,s].map(n=>String(n).padStart(2,'0')).join(':');
+}
 function percentOfDaySeconds(sec){ return (sec/(24*3600))*100; }
-function durationSecondsForSessions(sessions, dayIso=null){
-  let total=0;
+
+/* ---------- local cache helpers ---------- */
+const LOCAL_PREFIX = 'dnt_tasks:';
+function localKeyForDate(dateIso){
+  const userPart = currentUser ? `${currentUser.uid}:` : 'guest:';
+  return LOCAL_PREFIX + userPart + dateIso;
+}
+function readLocal(dateIso){
+  const raw = localStorage.getItem(localKeyForDate(dateIso));
+  if(!raw) return { date: dateIso, tasks: [] };
+  try { return JSON.parse(raw); } catch(e) { return { date: dateIso, tasks: [] }; }
+}
+function writeLocal(obj){
+  localStorage.setItem(localKeyForDate(obj.date), JSON.stringify(obj));
+}
+
+/* ---------- Firestore helpers ---------- */
+function dayDocRef(uid, dateIso){
+  return doc(db, 'users', uid, 'days', dateIso);
+}
+async function readRemoteDay(uid, dateIso){
+  try{
+    const snap = await getDoc(dayDocRef(uid, dateIso));
+    if(snap.exists()) return snap.data();
+    return null;
+  }catch(err){
+    console.warn('Firestore read error', err);
+    return null;
+  }
+}
+async function writeRemoteDay(uid, dayObj){
+  try{
+    await setDoc(dayDocRef(uid, dayObj.date), dayObj);
+    return true;
+  }catch(err){
+    console.warn('Firestore write error', err);
+    return false;
+  }
+}
+
+/* ---------- data math ---------- */
+function durationSecondsForSessions(sessions, dayIso = null){
+  let total = 0;
   for(const s of sessions){
     const start = s.start ? new Date(s.start) : null;
     const end = s.end ? new Date(s.end) : new Date();
     if(!start) continue;
     if(dayIso){
-      const dayStart = new Date(dayIso+'T00:00:00');
-      const dayEnd = new Date(dayIso+'T23:59:59.999');
+      const dayStart = new Date(dayIso + 'T00:00:00');
+      const dayEnd = new Date(dayIso + 'T23:59:59.999');
       const segStart = start > dayStart ? start : dayStart;
       const segEnd = end < dayEnd ? end : dayEnd;
-      if(segEnd > segStart) total += (segEnd - segStart)/1000;
+      if(segEnd > segStart) total += (segEnd - segStart) / 1000;
     } else {
-      if(end > start) total += (end - start)/1000;
+      if(end > start) total += (end - start) / 1000;
     }
   }
-  return Math.max(0,total);
+  return Math.max(0, total);
 }
 
-/* Firestore helpers */
-function dayDocRef(uid, dateIso){ return doc(db,'users',uid,'days',dateIso); }
-async function readRemoteDay(uid, dateIso){ try{ const snap = await getDoc(dayDocRef(uid,dateIso)); return snap.exists()?snap.data():null; }catch(e){ console.warn(e); return null; } }
-async function writeRemoteDay(uid, dayObj){ try{ await setDoc(dayDocRef(uid,dayObj.date), dayObj); return true; }catch(e){ console.warn(e); return false; } }
-
-const LOCAL_PREFIX = 'dnt_tasks:';
-function localKeyForDate(dateIso){ const userPart = currentUser ? `${currentUser.uid}:` : 'guest:'; return LOCAL_PREFIX + userPart + dateIso; }
-function readLocal(dateIso){ const raw = localStorage.getItem(localKeyForDate(dateIso)); if(!raw) return { date: dateIso, tasks: [] }; try{return JSON.parse(raw);}catch(e){return { date: dateIso, tasks: [] }; } }
-function writeLocal(obj){ localStorage.setItem(localKeyForDate(obj.date), JSON.stringify(obj)); }
-
-/* Render auth controls (drawer + inline placeholders) */
+/* ---------- render auth controls (drawer only) ---------- */
 function renderAuthControls(){
   drawerAuthArea.innerHTML = '';
-  Array.from(controlsInline.querySelectorAll('.auth-btn')).forEach(n=>n.remove());
-  // keep header userArea intentionally blank on small screens
+  // remove inline auth buttons if any
+  Array.from(controlsInline.querySelectorAll('.auth-btn')).forEach(n => n.remove());
+  // header intentionally keeps userArea empty (badge in drawer only)
+  userArea.innerHTML = '';
   if(currentUser){
-    const drawerBadge = document.createElement('div'); drawerBadge.className='user-badge'; drawerBadge.innerText = currentUser.email || currentUser.uid;
-    const drawerLogout = document.createElement('button'); drawerLogout.className='btn ghost'; drawerLogout.innerText='Logout'; drawerLogout.addEventListener('click', ()=> signOut(auth));
-    drawerAuthArea.appendChild(drawerBadge); drawerAuthArea.appendChild(drawerLogout);
-    userArea.innerHTML = ''; // intentionally empty in header
+    const drawerBadge = document.createElement('div');
+    drawerBadge.className = 'user-badge';
+    drawerBadge.innerText = currentUser.email || currentUser.uid;
+    const drawerLogout = document.createElement('button');
+    drawerLogout.className = 'btn ghost';
+    drawerLogout.innerText = 'Logout';
+    drawerLogout.addEventListener('click', async () => { await signOut(auth); });
+    drawerAuthArea.appendChild(drawerBadge);
+    drawerAuthArea.appendChild(drawerLogout);
   } else {
-    const drawerLogin = document.createElement('button'); drawerLogin.className='btn auth-btn'; drawerLogin.innerText='Login'; drawerLogin.addEventListener('click', ()=> openAuthModal('login'));
-    const drawerReg = document.createElement('button'); drawerReg.className='btn ghost auth-btn'; drawerReg.innerText='Register'; drawerReg.addEventListener('click', ()=> openAuthModal('register'));
-    drawerAuthArea.appendChild(drawerLogin); drawerAuthArea.appendChild(drawerReg);
-    userArea.innerHTML = ''; // intentionally empty in header
+    const drawerLogin = document.createElement('button');
+    drawerLogin.className = 'btn auth-btn';
+    drawerLogin.innerText = 'Login';
+    drawerLogin.addEventListener('click', () => openAuthModal('login'));
+    const drawerReg = document.createElement('button');
+    drawerReg.className = 'btn ghost auth-btn';
+    drawerReg.innerText = 'Register';
+    drawerReg.addEventListener('click', () => openAuthModal('register'));
+    drawerAuthArea.appendChild(drawerLogin);
+    drawerAuthArea.appendChild(drawerReg);
   }
 }
 
-/* Auth modal (inline quick modal) */
-const modalBackdrop = document.createElement('div');
-modalBackdrop.style.display='none';
+/* ---------- auth modal builder & actions ---------- */
 function openAuthModal(mode='login'){
-  modalBackdrop.style.position='fixed'; modalBackdrop.style.inset='0'; modalBackdrop.style.background='rgba(0,0,0,0.35)'; modalBackdrop.style.zIndex='120';
-  const modal = document.createElement('div'); modal.style.background='#fff'; modal.style.padding='16px'; modal.style.borderRadius='10px'; modal.style.width='92%'; modal.style.maxWidth='420px'; modal.style.margin='8% auto'; modal.setAttribute('role','dialog');
-  if(mode==='register'){
-    modal.innerHTML=`<h3>Create account</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-create" class="btn">Create</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
-    document.body.appendChild(modalBackdrop); document.body.appendChild(modal); modalBackdrop.style.display='block';
+  // small modal builder appended to body
+  const backdrop = document.createElement('div');
+  backdrop.style.position = 'fixed';
+  backdrop.style.inset = '0';
+  backdrop.style.background = 'rgba(0,0,0,0.35)';
+  backdrop.style.zIndex = '120';
+  backdrop.tabIndex = -1;
+
+  const modal = document.createElement('div');
+  modal.style.background = '#fff';
+  modal.style.padding = '16px';
+  modal.style.borderRadius = '10px';
+  modal.style.width = '92%';
+  modal.style.maxWidth = '420px';
+  modal.style.margin = '8% auto';
+  modal.setAttribute('role','dialog');
+
+  if(mode === 'register'){
+    modal.innerHTML = `
+      <h3>Create account</h3>
+      <div style="margin-top:8px">
+        <input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
+        <div style="height:8px"></div>
+        <input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="m-create" class="btn">Create</button>
+        <button id="m-cancel" class="btn ghost">Cancel</button>
+      </div>
+    `;
+    backdrop.addEventListener('click', () => closeModal());
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+
     document.getElementById('m-cancel').addEventListener('click', closeModal);
-    document.getElementById('m-create').addEventListener('click', async ()=>{
-      const e=document.getElementById('m-email').value.trim(), p=document.getElementById('m-pass').value;
-      if(!e||!p||p.length<6){ alert('Provide email and password (min 6)'); return; }
-      try{ await createUserWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert(err.message||err); }
+    document.getElementById('m-create').addEventListener('click', async () => {
+      const e = document.getElementById('m-email').value.trim();
+      const p = document.getElementById('m-pass').value;
+      if(!e || !p || p.length < 6){ alert('Provide email and password (min 6).'); return; }
+      try{
+        await createUserWithEmailAndPassword(auth, e, p);
+        closeModal();
+      }catch(err){ alert('Register error: ' + (err.message || err)); }
     });
+
   } else {
-    modal.innerHTML=`<h3>Login</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-login" class="btn">Login</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
-    document.body.appendChild(modalBackdrop); document.body.appendChild(modal); modalBackdrop.style.display='block';
+    modal.innerHTML = `
+      <h3>Login</h3>
+      <div style="margin-top:8px">
+        <input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
+        <div style="height:8px"></div>
+        <input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
+      </div>
+      <div style="display:flex;gap:8px;margin-top:12px">
+        <button id="m-login" class="btn">Login</button>
+        <button id="m-cancel" class="btn ghost">Cancel</button>
+      </div>
+    `;
+    backdrop.addEventListener('click', () => closeModal());
+    document.body.appendChild(backdrop);
+    document.body.appendChild(modal);
+
     document.getElementById('m-cancel').addEventListener('click', closeModal);
-    document.getElementById('m-login').addEventListener('click', async ()=>{
-      const e=document.getElementById('m-email').value.trim(), p=document.getElementById('m-pass').value;
-      if(!e||!p){ alert('Provide email & password'); return; }
-      try{ await signInWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert(err.message||err); }
+    document.getElementById('m-login').addEventListener('click', async () => {
+      const e = document.getElementById('m-email').value.trim();
+      const p = document.getElementById('m-pass').value;
+      if(!e || !p){ alert('Provide email & password.'); return; }
+      try{
+        await signInWithEmailAndPassword(auth, e, p);
+        closeModal();
+      }catch(err){ alert('Login error: ' + (err.message || err)); }
     });
   }
-  function closeModal(){ modalBackdrop.style.display='none'; if(modal.parentNode) modal.remove(); if(modalBackdrop.parentNode) modalBackdrop.remove(); }
+
+  function closeModal(){
+    if(modal.parentNode) modal.remove();
+    if(backdrop.parentNode) backdrop.remove();
+  }
 }
 
-/* Tasks rendering & session helpers (unchanged logic) */
+/* ---------- rendering tasks UI ---------- */
 function render(){
   const iso = isoDate(currentDate);
   taskListEl.innerHTML = '';
   data.tasks = data.tasks || [];
   data.tasks.sort((a,b)=> (a.createdAt||'').localeCompare(b.createdAt||''));
   for(const t of data.tasks){
-    const card = document.createElement('article'); card.className='task-card'; card.dataset.id=t.id;
-    const row = document.createElement('div'); row.className='task-row';
-    const left = document.createElement('div'); left.style.display='flex'; left.style.flexDirection='column';
-    const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.alignItems='center'; titleRow.style.gap='8px';
+    const card = document.createElement('article');
+    card.className = 'task-card';
+    card.dataset.id = t.id;
+
+    const row = document.createElement('div');
+    row.className = 'task-row';
+
+    // left
+    const left = document.createElement('div');
+    left.style.display='flex'; left.style.flexDirection='column';
+    const titleRow = document.createElement('div');
+    titleRow.style.display='flex'; titleRow.style.alignItems='center'; titleRow.style.gap='8px';
     const running = hasRunningSession(t);
-    if(running){ const dot=document.createElement('span'); dot.className='running-dot'; titleRow.appendChild(dot); }
-    const title = document.createElement('span'); title.className='task-title'; title.contentEditable=true; title.spellcheck=false; title.innerText=t.name||'Untitled task'; title.style.outline='none';
-    title.addEventListener('blur', ()=>{ t.name = title.innerText.trim() || 'Untitled task'; saveData(); });
-    title.addEventListener('keydown',(ev)=>{ if(ev.key==='Enter'){ ev.preventDefault(); title.blur(); }});
-    titleRow.appendChild(title); left.appendChild(titleRow);
-    const meta = document.createElement('div'); meta.className='task-meta'; const dur = durationSecondsForSessions(t.sessions||[], iso);
+    if(running){
+      const dot = document.createElement('span');
+      dot.className = 'running-dot';
+      titleRow.appendChild(dot);
+    }
+    const title = document.createElement('span');
+    title.className = 'task-title';
+    title.contentEditable = true;
+    title.spellcheck = false;
+    title.innerText = t.name || 'Untitled task';
+    title.style.outline = 'none';
+    title.addEventListener('blur', ()=>{
+      t.name = title.innerText.trim() || 'Untitled task';
+      saveData();
+    });
+    title.addEventListener('keydown', (ev)=> {
+      if(ev.key === 'Enter'){ ev.preventDefault(); title.blur(); }
+    });
+    titleRow.appendChild(title);
+    left.appendChild(titleRow);
+
+    const meta = document.createElement('div');
+    meta.className = 'task-meta';
+    const dur = durationSecondsForSessions(t.sessions || [], iso);
     meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`;
-    left.appendChild(meta); row.appendChild(left);
-    const actions = document.createElement('div'); actions.className='task-actions';
-    const startBtn = document.createElement('button'); startBtn.className='btn-action btn-start'; startBtn.innerText=running?'Running':'Start'; startBtn.disabled=running; startBtn.addEventListener('click', ()=> startSession(t));
-    const endBtn = document.createElement('button'); endBtn.className='btn-action btn-end'; endBtn.innerText='End'; endBtn.addEventListener('click', ()=> endSession(t));
-    const delBtn = document.createElement('button'); delBtn.className='btn-action btn-delete'; delBtn.innerText='Delete'; delBtn.addEventListener('click', async ()=> { if(confirm('Delete this task?')){ data.tasks=data.tasks.filter(x=>x.id!==t.id); await saveData(); render(); }});
-    actions.appendChild(startBtn); actions.appendChild(endBtn); actions.appendChild(delBtn); row.appendChild(actions);
+    left.appendChild(meta);
+
+    row.appendChild(left);
+
+    // actions
+    const actions = document.createElement('div');
+    actions.className = 'task-actions';
+    const startBtn = document.createElement('button');
+    startBtn.className = 'btn-action btn-start';
+    startBtn.innerText = running ? 'Running' : 'Start';
+    startBtn.disabled = running;
+    startBtn.addEventListener('click', ()=> { startSession(t); });
+    const endBtn = document.createElement('button');
+    endBtn.className = 'btn-action btn-end';
+    endBtn.innerText = 'End';
+    endBtn.addEventListener('click', ()=> { endSession(t); });
+    const delBtn = document.createElement('button');
+    delBtn.className = 'btn-action btn-delete';
+    delBtn.innerText = 'Delete';
+    delBtn.addEventListener('click', async ()=>{
+      if(confirm('Delete this task and its sessions?')) {
+        data.tasks = data.tasks.filter(x=>x.id !== t.id);
+        await saveData();
+        render();
+      }
+    });
+
+    actions.appendChild(startBtn);
+    actions.appendChild(endBtn);
+    actions.appendChild(delBtn);
+    row.appendChild(actions);
+
     card.appendChild(row);
-    const progressWrap = document.createElement('div'); progressWrap.className='progress';
-    const progressInner=document.createElement('i'); progressInner.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%';
-    progressWrap.appendChild(progressInner); card.appendChild(progressWrap); taskListEl.appendChild(card);
+
+    // progress
+    const progressWrap = document.createElement('div');
+    progressWrap.className = 'progress';
+    const progressInner = document.createElement('i');
+    const pct = Math.min(100, percentOfDaySeconds(dur));
+    progressInner.style.width = pct + '%';
+    progressWrap.appendChild(progressInner);
+    card.appendChild(progressWrap);
+
+    taskListEl.appendChild(card);
   }
-  const totalSec = (data.tasks||[]).reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions||[], iso),0);
-  totalTimeEl.textContent='Total: '+secondsToHHMMSS(totalSec);
-  totalPercentEl.textContent= percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
+
+  // totals
+  const totalSec = (data.tasks || []).reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions || [], iso), 0);
+  totalTimeEl.textContent = 'Total: ' + secondsToHHMMSS(totalSec);
+  totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
 }
 
+/* ---------- session helpers ---------- */
 function lastSessionTimesText(task, dayIso){
   const iso = dayIso || isoDate(currentDate);
-  const sessions = (task.sessions||[]).slice().reverse();
+  const sessions = (task.sessions || []).slice().reverse();
   for(const s of sessions){
-    const start = s.start ? new Date(s.start):null; const end = s.end ? new Date(s.end) : (s.start? new Date():null);
+    const start = s.start ? new Date(s.start) : null;
+    const end = s.end ? new Date(s.end) : (s.start ? new Date() : null);
     if(!start) continue;
-    const dayStart=new Date(iso+'T00:00:00'); const dayEnd=new Date(iso+'T23:59:59.999');
-    const segStart = start>dayStart?start:dayStart; const segEnd = end<dayEnd?end:dayEnd;
-    if(segEnd>segStart) return `Start: ${segStart.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} • End: ${s.end?segEnd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}):'—'}`;
+    const dayStart = new Date(iso + 'T00:00:00');
+    const dayEnd = new Date(iso + 'T23:59:59.999');
+    const segStart = start > dayStart ? start : dayStart;
+    const segEnd = end < dayEnd ? end : dayEnd;
+    if(segEnd > segStart){
+      return `Start: ${segStart.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'})} • End: ${s.end ? segEnd.toLocaleTimeString([], {hour:'2-digit',minute:'2-digit'}) : '—'}`;
+    }
   }
   return 'Start: — • End: —';
 }
-function hasRunningSession(task){ return (task.sessions||[]).some(s=>s.start && !s.end); }
+function hasRunningSession(task){ return (task.sessions||[]).some(s => s.start && !s.end); }
 
 async function startSession(task){
   if(hasRunningSession(task)){ alert('This task already has a running session. End it first.'); return; }
-  const s ={ start: nowISO(), end:null }; task.sessions=task.sessions||[]; task.sessions.push(s); await saveData(); render();
+  const s = { start: nowISO(), end: null };
+  task.sessions = task.sessions || [];
+  task.sessions.push(s);
+  await saveData();
+  render();
 }
+
 async function endSession(task){
-  const sessions = task.sessions || []; const idx = sessions.map(s=>s.start && !s.end?1:0).lastIndexOf(1);
-  if(idx===-1){ alert('No running session found.'); return; }
-  const s = sessions[idx]; const endTime = new Date(); const startTime = new Date(s.start);
+  const sessions = task.sessions || [];
+  const idx = sessions.map(s=>s.start && !s.end ? 1:0).lastIndexOf(1);
+  if(idx === -1){ alert('No running session found for this task. Press Start first.'); return; }
+  const s = sessions[idx];
+  const endTime = new Date();
+  const startTime = new Date(s.start);
   if(startTime.toDateString() !== endTime.toDateString()){
-    const endOfStartDay = new Date(startTime); endOfStartDay.setHours(23,59,59,999); s.end = endOfStartDay.toISOString();
-    let nextStart = new Date(startTime); nextStart.setDate(nextStart.getDate()+1); nextStart.setHours(0,0,0,0);
+    const endOfStartDay = new Date(startTime);
+    endOfStartDay.setHours(23,59,59,999);
+    s.end = endOfStartDay.toISOString();
+    let nextStart = new Date(startTime);
+    nextStart.setDate(nextStart.getDate() + 1);
+    nextStart.setHours(0,0,0,0);
     if(nextStart.toDateString() === endTime.toDateString()){
       task.sessions.push({ start: nextStart.toISOString(), end: endTime.toISOString() });
     } else {
       let cursorStart = new Date(nextStart);
       while(cursorStart.toDateString() !== endTime.toDateString()){
-        const fullDayEnd = new Date(cursorStart); fullDayEnd.setHours(23,59,59,999); task.sessions.push({ start: cursorStart.toISOString(), end: fullDayEnd.toISOString() });
-        cursorStart.setDate(cursorStart.getDate()+1); cursorStart.setHours(0,0,0,0);
+        const fullDayEnd = new Date(cursorStart);
+        fullDayEnd.setHours(23,59,59,999);
+        task.sessions.push({ start: cursorStart.toISOString(), end: fullDayEnd.toISOString() });
+        cursorStart.setDate(cursorStart.getDate() + 1);
+        cursorStart.setHours(0,0,0,0);
       }
       task.sessions.push({ start: cursorStart.toISOString(), end: endTime.toISOString() });
     }
   } else {
     s.end = endTime.toISOString();
   }
-  await saveData(); render();
+  await saveData();
+  render();
 }
 
-async function addTask(name){ const trimmed = (name||'').trim(); if(!trimmed) return; const newTask = { id: uid('task'), name: trimmed, sessions: [], createdAt: new Date().toISOString() }; data.tasks.push(newTask); await saveData(); render(); newTaskInput.value=''; newTaskInput.focus(); }
+/* ---------- add task & live updates ---------- */
+async function addTask(name){
+  const trimmed = (name || '').trim();
+  if(!trimmed) return;
+  const newTask = {
+    id: uid('task'),
+    name: trimmed,
+    sessions: [],
+    createdAt: new Date().toISOString()
+  };
+  data.tasks.push(newTask);
+  await saveData();
+  render();
+  newTaskInput.value = '';
+  newTaskInput.focus();
+}
 
-function startLiveTimer(){ if(liveTimerInterval) clearInterval(liveTimerInterval); liveTimerInterval = setInterval(()=> updateLiveDisplays(), 1000); }
-function updateLiveDisplays(){ const iso=isoDate(currentDate); const cards=document.querySelectorAll('.task-card'); data.tasks.forEach(t=>{ const card = Array.from(cards).find(c=>c.dataset.id===t.id); if(!card) return; const meta = card.querySelector('.task-meta'); const dur = durationSecondsForSessions(t.sessions||[], iso); meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`; const prog = card.querySelector('.progress > i'); if(prog) prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%'; const btnStart = card.querySelector('.btn-start'); const running = hasRunningSession(t); btnStart.disabled = running; btnStart.innerText = running ? 'Running' : 'Start'; }); const totalSec=(data.tasks||[]).reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions||[], iso),0); totalTimeEl.textContent = 'Total: '+secondsToHHMMSS(totalSec); totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours'; }
+function startLiveTimer(){
+  if(liveTimerInterval) clearInterval(liveTimerInterval);
+  liveTimerInterval = setInterval(()=> {
+    updateLiveDisplays();
+  }, 1000);
+}
+function updateLiveDisplays(){
+  const iso = isoDate(currentDate);
+  const cards = document.querySelectorAll('.task-card');
+  data.tasks.forEach(t => {
+    const card = Array.from(cards).find(c => c.dataset.id === t.id);
+    if(!card) return;
+    const meta = card.querySelector('.task-meta');
+    const dur = durationSecondsForSessions(t.sessions || [], iso);
+    meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`;
+    const prog = card.querySelector('.progress > i');
+    if(prog) { prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%'; }
+    const btnStart = card.querySelector('.btn-start');
+    const running = hasRunningSession(t);
+    btnStart.disabled = running;
+    btnStart.innerText = running ? 'Running' : 'Start';
+  });
+  const totalSec = data.tasks.reduce((acc,t)=> acc + durationSecondsForSessions(t.sessions || [], iso), 0);
+  totalTimeEl.textContent = 'Total: ' + secondsToHHMMSS(totalSec);
+  totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
+}
 
+/* ---------- CSV export & clear (used from drawer) ---------- */
+function exportCsvForDate(dateIso){
+  const header = ['Task Name','Session Start (ISO)','Session End (ISO)','Duration (seconds)','Duration (HH:MM:SS)','Percent of 24h'];
+  const rows = [header];
+  const dayData = data;
+  for(const t of dayData.tasks){
+    const sessions = t.sessions || [];
+    for(const s of sessions){
+      const start = s.start || '';
+      const end = s.end || '';
+      const dur = durationSecondsForSessions([s], dateIso);
+      if(dur <= 0) continue;
+      rows.push([t.name, start, end, String(Math.round(dur)), secondsToHHMMSS(dur), percentOfDaySeconds(dur).toFixed(4) + '%']);
+    }
+  }
+  const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
+  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement('a');
+  a.href = url;
+  a.download = `dnt_${currentUser?currentUser.uid:'guest'}_${dateIso}.csv`;
+  a.click();
+  URL.revokeObjectURL(url);
+}
+
+async function clearDay(dateIso){
+  if(!confirm('Clear all tasks & sessions for this day? This cannot be undone.')) return;
+  data = { date: dateIso, tasks: [] };
+  await saveData();
+  render();
+}
+
+/* ---------- navigation ---------- */
+async function shiftDays(delta){
+  const d = new Date(currentDate);
+  d.setDate(d.getDate() + delta);
+  await loadDate(d);
+}
+async function jumpToToday(){
+  await loadDate(new Date());
+}
+
+/* ---------- persistence: read/write local + remote ---------- */
 async function saveData(){
   writeLocal(data);
-  if(currentUser) await writeRemoteDay(currentUser.uid, data);
+  if(currentUser){
+    await writeRemoteDay(currentUser.uid, data);
+  }
 }
 async function loadDate(d){
   currentDate = new Date(d);
@@ -373,43 +647,30 @@ async function loadDate(d){
   dateDisplay.textContent = new Date(currentDate).toLocaleDateString(undefined, { weekday: 'short', month:'short', day:'numeric', year:'numeric' });
   if(currentUser){
     const remote = await readRemoteDay(currentUser.uid, iso);
-    if(remote){ data = remote; writeLocal(data); } else { data = readLocal(iso); await writeRemoteDay(currentUser.uid, data); }
+    if(remote){
+      data = remote;
+      writeLocal(data);
+    } else {
+      data = readLocal(iso);
+      await writeRemoteDay(currentUser.uid, data);
+    }
   } else {
     data = readLocal(iso);
   }
-  render(); startLiveTimer(); renderAuthControls();
+  render();
+  startLiveTimer();
+  renderAuthControls();
 }
 
-function exportCsvForDate(dateIso){
-  const header = ['Task Name','Session Start (ISO)','Session End (ISO)','Duration (seconds)','Duration (HH:MM:SS)','Percent of 24h'];
-  const rows = [header];
-  for(const t of data.tasks){
-    for(const s of (t.sessions||[])){
-      const dur = durationSecondsForSessions([s], dateIso);
-      if(dur <= 0) continue;
-      rows.push([t.name, s.start||'', s.end||'', String(Math.round(dur)), secondsToHHMMSS(dur), percentOfDaySeconds(dur).toFixed(4)+'%']);
-    }
-  }
-  const csv = rows.map(r=> r.map(cell=> `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`dnt_${currentUser?currentUser.uid:'guest'}_${dateIso}.csv`; a.click(); URL.revokeObjectURL(url);
-}
-async function clearDay(dateIso){ if(!confirm('Clear all tasks & sessions for this day?')) return; data={date:dateIso,tasks:[]}; await saveData(); render(); }
-
-async function shiftDays(delta){ const d=new Date(currentDate); d.setDate(d.getDate()+delta); await loadDate(d); }
-async function jumpToToday(){ await loadDate(new Date()); }
-
-/* Events */
+/* ---------- events ---------- */
 addTaskBtn.addEventListener('click', ()=> addTask(newTaskInput.value));
 fabAdd.addEventListener('click', ()=> addTask(newTaskInput.value || 'New Task'));
-newTaskInput.addEventListener('keydown', (e)=> { if(e.key==='Enter') addTask(newTaskInput.value); });
+newTaskInput.addEventListener('keydown', (e)=> { if(e.key === 'Enter') addTask(newTaskInput.value); });
 prevBtn.addEventListener('click', ()=> shiftDays(-1));
 nextBtn.addEventListener('click', ()=> shiftDays(1));
 todayBtn.addEventListener('click', ()=> jumpToToday());
-exportCsvBtn.addEventListener('click', ()=> exportCsvForDate(isoDate(currentDate)));
-clearDayBtn.addEventListener('click', ()=> clearDay(isoDate(currentDate)));
 
-/* Drawer events */
+/* drawer events */
 hamburger.addEventListener('click', ()=> openDrawer());
 drawerClose.addEventListener('click', ()=> closeDrawer());
 drawerBackdrop.addEventListener('click', (e)=> { if(e.target === drawerBackdrop) closeDrawer(); });
@@ -418,16 +679,24 @@ drawerToday.addEventListener('click', ()=> { jumpToToday(); closeDrawer(); });
 drawerNext.addEventListener('click', ()=> { shiftDays(1); closeDrawer(); });
 drawerExport.addEventListener('click', ()=> { exportCsvForDate(isoDate(currentDate)); closeDrawer(); });
 drawerClear.addEventListener('click', ()=> { clearDay(isoDate(currentDate)); closeDrawer(); });
+
 function openDrawer(){ drawerBackdrop.style.display='block'; drawerBackdrop.setAttribute('aria-hidden','false'); setTimeout(()=> drawer.classList.add('open'), 10); }
 function closeDrawer(){ drawer.classList.remove('open'); drawerBackdrop.setAttribute('aria-hidden','true'); setTimeout(()=> drawerBackdrop.style.display='none', 240); }
 
-/* Auth state listener */
+/* ---------- auth state listener: sync on sign-in ---------- */
 onAuthStateChanged(auth, async (user) => {
   if(user){
     currentUser = user;
     const iso = isoDate(currentDate);
     const remote = await readRemoteDay(currentUser.uid, iso);
-    if(remote){ data = remote; writeLocal(data); } else { data = readLocal(iso); await writeRemoteDay(currentUser.uid, data); }
+    if(remote){
+      data = remote;
+      writeLocal(data);
+    } else {
+      const local = readLocal(iso);
+      data = local;
+      await writeRemoteDay(currentUser.uid, data);
+    }
   } else {
     currentUser = null;
     data = readLocal(isoDate(currentDate));
@@ -436,11 +705,14 @@ onAuthStateChanged(auth, async (user) => {
   await loadDate(currentDate);
 });
 
-/* init */
-(async function init(){ renderAuthControls(); await loadDate(new Date()); })();
+/* ---------- init ---------- */
+(async function init(){
+  renderAuthControls();
+  await loadDate(new Date());
+})();
 
-/* helper */
-function escapeHtml(str){ return String(str).replace(/[&<>"']/g,(m)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]) ); }
+/* ---------- small helper ---------- */
+function escapeHtml(str){ return String(str).replace(/[&<>"']/g, (m)=> ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":"&#39;"}[m]) ); }
 
 </script>
 </body>
