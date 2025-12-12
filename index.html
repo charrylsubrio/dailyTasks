@@ -3,22 +3,19 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width,initial-scale=1" />
-<title>Daily Non-Negotiable Tasks — Compact Actions (32×32)</title>
+<title>Daily Non-Negotiable Tasks — Import CSV</title>
 <style>
   :root{
     --bg:#f7f7f8;
     --panel:#ffffff;
     --muted:#6b6f73;
     --accent:#4c5055;
-    --success:#2d9f6a; /* green start */
-    --danger:#e25353;  /* red end */
+    --success:#2d9f6a;
+    --danger:#e25353;
     --glass: rgba(76,80,85,0.06);
   }
-
   html,body{height:100%;margin:0;font-family:Inter,system-ui,-apple-system,Segoe UI,Roboto,"Helvetica Neue",Arial;}
   body{background:var(--bg);color:#111;padding:12px;box-sizing:border-box}
-
-  /* HEADER */
   header{display:flex;align-items:center;justify-content:space-between;margin-bottom:10px;gap:8px}
   .header-left{display:flex;align-items:center;gap:10px;min-width:0}
   .hamburger{width:44px;height:44px;border-radius:10px;border:0;background:var(--panel);box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;align-items:center;justify-content:center}
@@ -29,14 +26,12 @@
   button.btn{background:var(--accent);color:#fff;border:0;padding:8px 10px;border-radius:10px;font-weight:700;min-width:42px}
   button.ghost{background:transparent;color:var(--accent);border:1px solid var(--glass)}
 
-  /* Drawer */
   .drawer-backdrop{position:fixed;inset:0;display:none;background:rgba(0,0,0,0.35);z-index:80}
   .drawer{position:fixed;left:0;top:0;bottom:0;width:300px;background:var(--panel);box-shadow:8px 0 30px rgba(0,0,0,0.12);transform:translateX(-110%);transition:transform .22s ease;z-index:90;padding:14px;display:flex;flex-direction:column;gap:12px}
   .drawer.open{transform:translateX(0)}
   .drawer .section{display:flex;flex-direction:column;gap:8px}
   .drawer .close{align-self:flex-end;padding:6px;border-radius:8px;border:0;background:transparent}
 
-  /* main */
   main{display:flex;flex-direction:column;gap:12px;}
   .summary{background:linear-gradient(180deg,#fff,#fbfbfb);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;justify-content:space-between;align-items:center}
   .left{display:flex;flex-direction:column;}
@@ -44,69 +39,34 @@
   .small{font-size:12px;color:var(--muted)}
   .task-list{display:flex;flex-direction:column;gap:10px;margin-bottom:88px}
 
-  /* task card + compact horizontal actions aligned and centered vertically */
-  .task-card{
-    background:var(--panel);
-    padding:12px;
-    border-radius:12px;
-    box-shadow:0 6px 18px rgba(0,0,0,0.03);
-    display:flex;
-    flex-direction:row;
-    gap:12px;
-    align-items:center; /* center vertically */
-    position:relative;
-  }
-
+  .task-card{background:var(--panel);padding:12px;border-radius:12px;box-shadow:0 6px 18px rgba(0,0,0,0.03);display:flex;flex-direction:row;gap:12px;align-items:center;position:relative}
   .task-left{flex:1;display:flex;flex-direction:column;gap:8px;padding-right:4px}
   .task-title{font-weight:700;color:#111;font-size:18px;line-height:1}
   .task-meta{font-size:12px;color:var(--muted);line-height:1.2}
 
-  /* action buttons: 32x32, tight spacing (4px), centered vertically */
   .task-right{display:flex;flex-direction:row;align-items:center;gap:4px}
-  .action-btn{
-    width:32px;
-    height:32px;
-    border-radius:8px;
-    border:0;
-    background:var(--panel);
-    box-shadow:0 6px 14px rgba(0,0,0,0.06);
-    display:flex;
-    align-items:center;
-    justify-content:center;
-    cursor:pointer;
-    font-weight:700;
-    padding:0;
-  }
+  .action-btn{width:32px;height:32px;border-radius:8px;border:0;background:var(--panel);box-shadow:0 6px 14px rgba(0,0,0,0.06);display:flex;align-items:center;justify-content:center;cursor:pointer;font-weight:700;padding:0}
   .action-btn.start{background:linear-gradient(180deg,var(--success),#1f7a45);color:#fff}
   .action-btn.end{background:linear-gradient(180deg,var(--danger),#c24343);color:#fff}
   .action-btn.del{background:#fff;border:1px solid var(--glass);color:var(--muted)}
   .action-btn:disabled{opacity:0.45;cursor:not-allowed;box-shadow:none}
-
   .action-icon{width:14px;height:14px;display:block}
 
   .progress{height:8px;background:var(--glass);border-radius:6px;overflow:hidden;margin-top:6px}
   .progress > i{display:block;height:100%;background:linear-gradient(90deg,var(--accent),#6b6f73);width:0%}
-
   .fab{position:fixed;right:16px;bottom:18px;z-index:30}
   .fab button{width:56px;height:56px;border-radius:999px;font-size:28px;display:flex;align-items:center;justify-content:center;box-shadow:0 8px 24px rgba(76,80,85,0.14)}
-
   .inputs{display:flex;gap:8px}
   input[type="text"]{flex:1;padding:10px;border-radius:10px;border:1px solid var(--glass);font-size:15px}
-
   @media(min-width:720px){ body{max-width:880px;margin:12px auto} .hamburger{display:none} .title-wrap{align-items:flex-start} .controls{display:flex} .drawer-backdrop{display:none} }
 
-  /* utilities */
   .muted{color:var(--muted);font-size:12px}
   .tiny{font-size:11px;color:var(--muted)}
   .running-dot{width:10px;height:10px;border-radius:20px;background:var(--success);display:inline-block;margin-right:6px;box-shadow:0 4px 10px rgba(45,159,106,0.2)}
   footer.smallprint{position:fixed;left:12px;bottom:10px;font-size:12px;color:var(--muted)}
   .user-badge{background:var(--glass);padding:6px 8px;border-radius:999px;color:var(--accent);font-weight:700}
   .drawer .nav-btn{display:flex;justify-content:space-between;align-items:center;padding:10px;border-radius:10px;border:0;background:var(--bg);font-weight:700}
-
-  /* keep header compact on small viewports */
-  @media (max-width: 720px) {
-    #controls-inline button { display: none !important; }
-  }
+  @media (max-width: 720px) { #controls-inline button { display: none !important; } }
 </style>
 </head>
 <body>
@@ -133,7 +93,7 @@
   </div>
 </header>
 
-<!-- Drawer overlay + menu -->
+<!-- Drawer with Import CSV -->
 <div class="drawer-backdrop" id="drawer-backdrop" aria-hidden="true">
   <nav class="drawer" id="drawer" aria-label="Main menu">
     <button class="close" id="drawer-close" aria-label="Close menu">✕</button>
@@ -146,11 +106,14 @@
 
     <div class="section">
       <button class="nav-btn" id="drawer-export">Export CSV</button>
+      <button class="nav-btn" id="drawer-import">Import CSV</button>
       <button class="nav-btn" id="drawer-clear">Clear Day</button>
+      <!-- hidden file input for import -->
+      <input type="file" id="import-file" accept=".csv,text/csv" style="display:none" />
     </div>
 
     <div class="section" id="drawer-auth-area">
-      <!-- auth controls rendered by JS -->
+      <!-- auth controls inserted by JS -->
     </div>
 
     <div style="margin-top:auto;font-size:12px;color:var(--muted)">Stored locally (or in Firebase when signed in)</div>
@@ -170,9 +133,7 @@
     <button class="btn" id="add-task">Add</button>
   </div>
 
-  <section class="task-list" id="task-list" aria-live="polite">
-    <!-- tasks -->
-  </section>
+  <section class="task-list" id="task-list" aria-live="polite"></section>
 </main>
 
 <div class="fab" title="Add task quick">
@@ -181,9 +142,8 @@
 
 <footer class="smallprint">Saved locally (localStorage). Works offline.</footer>
 
-<!-- Firebase + app logic -->
 <script type="module">
-/* ========= Firebase configuration (replace if needed) ========= */
+/* ========= Firebase configuration ========= */
 const firebaseConfig = {
   apiKey: "AIzaSyBIwCmbfK4949rj4RKLTihhLtsvQzjwU-w",
   authDomain: "dailytasks-64e5a.firebaseapp.com",
@@ -194,7 +154,7 @@ const firebaseConfig = {
   measurementId: "G-FKXHY4E8V5"
 };
 
-/* ---------- Firebase modular imports ---------- */
+/* Firebase modular imports */
 import { initializeApp } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-app.js";
 import { getAuth, onAuthStateChanged, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-auth.js";
 import { getFirestore, doc, getDoc, setDoc } from "https://www.gstatic.com/firebasejs/9.22.1/firebase-firestore.js";
@@ -203,7 +163,7 @@ const app = initializeApp(firebaseConfig);
 const auth = getAuth(app);
 const db = getFirestore(app);
 
-/* ---------- UI references ---------- */
+/* UI refs */
 const hamburger = document.getElementById('hamburger');
 const drawerBackdrop = document.getElementById('drawer-backdrop');
 const drawer = document.getElementById('drawer');
@@ -212,7 +172,9 @@ const drawerPrev = document.getElementById('drawer-prev');
 const drawerToday = document.getElementById('drawer-today');
 const drawerNext = document.getElementById('drawer-next');
 const drawerExport = document.getElementById('drawer-export');
+const drawerImport = document.getElementById('drawer-import');
 const drawerClear = document.getElementById('drawer-clear');
+const importFileInput = document.getElementById('import-file');
 const drawerAuthArea = document.getElementById('drawer-auth-area');
 
 const dateDisplay = document.getElementById('date-display');
@@ -233,7 +195,7 @@ let data = { date: isoDate(currentDate), tasks: [] };
 let liveTimerInterval = null;
 let currentUser = null;
 
-/* ---------- utilities ---------- */
+/* utilities */
 function isoDate(d){
   const t = new Date(d);
   t.setMinutes(t.getMinutes() - t.getTimezoneOffset());
@@ -250,7 +212,7 @@ function secondsToHHMMSS(sec){
 }
 function percentOfDaySeconds(sec){ return (sec/(24*3600))*100; }
 
-/* ---------- local cache helpers ---------- */
+/* local storage key helpers */
 const LOCAL_PREFIX = 'dnt_tasks:';
 function localKeyForDate(dateIso){
   const userPart = currentUser ? `${currentUser.uid}:` : 'guest:';
@@ -265,31 +227,20 @@ function writeLocal(obj){
   localStorage.setItem(localKeyForDate(obj.date), JSON.stringify(obj));
 }
 
-/* ---------- Firestore helpers ---------- */
-function dayDocRef(uid, dateIso){
-  return doc(db, 'users', uid, 'days', dateIso);
-}
+/* Firestore helpers */
+function dayDocRef(uid, dateIso){ return doc(db, 'users', uid, 'days', dateIso); }
 async function readRemoteDay(uid, dateIso){
   try{
     const snap = await getDoc(dayDocRef(uid, dateIso));
     if(snap.exists()) return snap.data();
     return null;
-  }catch(err){
-    console.warn('Firestore read error', err);
-    return null;
-  }
+  }catch(err){ console.warn('Firestore read error', err); return null; }
 }
 async function writeRemoteDay(uid, dayObj){
-  try{
-    await setDoc(dayDocRef(uid, dayObj.date), dayObj);
-    return true;
-  }catch(err){
-    console.warn('Firestore write error', err);
-    return false;
-  }
+  try{ await setDoc(dayDocRef(uid, dayObj.date), dayObj); return true; }catch(err){ console.warn('Firestore write error', err); return false; }
 }
 
-/* ---------- data math ---------- */
+/* compute durations */
 function durationSecondsForSessions(sessions, dayIso = null){
   let total = 0;
   for(const s of sessions){
@@ -309,136 +260,144 @@ function durationSecondsForSessions(sessions, dayIso = null){
   return Math.max(0, total);
 }
 
-/* ---------- render auth controls (drawer only) ---------- */
+/* render auth controls inside drawer */
 function renderAuthControls(){
   drawerAuthArea.innerHTML = '';
   Array.from(controlsInline.querySelectorAll('.auth-btn')).forEach(n => n.remove());
   userArea.innerHTML = '';
   if(currentUser){
-    const drawerBadge = document.createElement('div');
-    drawerBadge.className = 'user-badge';
-    drawerBadge.innerText = currentUser.email || currentUser.uid;
-    const drawerLogout = document.createElement('button');
-    drawerLogout.className = 'btn ghost';
-    drawerLogout.innerText = 'Logout';
-    drawerLogout.addEventListener('click', async () => { await signOut(auth); });
-    drawerAuthArea.appendChild(drawerBadge);
-    drawerAuthArea.appendChild(drawerLogout);
+    const drawerBadge = document.createElement('div'); drawerBadge.className = 'user-badge'; drawerBadge.innerText = currentUser.email || currentUser.uid;
+    const drawerLogout = document.createElement('button'); drawerLogout.className = 'btn ghost'; drawerLogout.innerText = 'Logout';
+    drawerLogout.addEventListener('click', async ()=> { await signOut(auth); });
+    drawerAuthArea.appendChild(drawerBadge); drawerAuthArea.appendChild(drawerLogout);
   } else {
-    const drawerLogin = document.createElement('button');
-    drawerLogin.className = 'btn auth-btn';
-    drawerLogin.innerText = 'Login';
-    drawerLogin.addEventListener('click', () => openAuthModal('login'));
-    const drawerReg = document.createElement('button');
-    drawerReg.className = 'btn ghost auth-btn';
-    drawerReg.innerText = 'Register';
-    drawerReg.addEventListener('click', () => openAuthModal('register'));
-    drawerAuthArea.appendChild(drawerLogin);
-    drawerAuthArea.appendChild(drawerReg);
+    const drawerLogin = document.createElement('button'); drawerLogin.className = 'btn auth-btn'; drawerLogin.innerText = 'Login'; drawerLogin.addEventListener('click', ()=> openAuthModal('login'));
+    const drawerReg = document.createElement('button'); drawerReg.className = 'btn ghost auth-btn'; drawerReg.innerText = 'Register'; drawerReg.addEventListener('click', ()=> openAuthModal('register'));
+    drawerAuthArea.appendChild(drawerLogin); drawerAuthArea.appendChild(drawerReg);
   }
 }
 
-/* ---------- auth modal builder & actions ---------- */
+/* auth modal (login/register) */
 function openAuthModal(mode='login'){
-  const backdrop = document.createElement('div');
-  backdrop.style.position = 'fixed';
-  backdrop.style.inset = '0';
-  backdrop.style.background = 'rgba(0,0,0,0.35)';
-  backdrop.style.zIndex = '120';
-
-  const modal = document.createElement('div');
-  modal.style.background = '#fff';
-  modal.style.padding = '16px';
-  modal.style.borderRadius = '10px';
-  modal.style.width = '92%';
-  modal.style.maxWidth = '420px';
-  modal.style.margin = '8% auto';
-  modal.setAttribute('role','dialog');
+  const backdrop = document.createElement('div'); backdrop.style.position='fixed'; backdrop.style.inset='0'; backdrop.style.background='rgba(0,0,0,0.35)'; backdrop.style.zIndex='120';
+  const modal = document.createElement('div'); modal.style.background='#fff'; modal.style.padding='16px'; modal.style.borderRadius='10px'; modal.style.width='92%'; modal.style.maxWidth='420px'; modal.style.margin='8% auto'; modal.setAttribute('role','dialog');
 
   if(mode === 'register'){
-    modal.innerHTML = `
-      <h3>Create account</h3>
-      <div style="margin-top:8px">
-        <input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-        <div style="height:8px"></div>
-        <input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button id="m-create" class="btn">Create</button>
-        <button id="m-cancel" class="btn ghost">Cancel</button>
-      </div>
-    `;
-    backdrop.addEventListener('click', () => closeModal());
-    document.body.appendChild(backdrop);
-    document.body.appendChild(modal);
-
+    modal.innerHTML = `<h3>Create account</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password (min 6)" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-create" class="btn">Create</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
+    backdrop.addEventListener('click', closeModal);
+    document.body.appendChild(backdrop); document.body.appendChild(modal);
     document.getElementById('m-cancel').addEventListener('click', closeModal);
-    document.getElementById('m-create').addEventListener('click', async () => {
-      const e = document.getElementById('m-email').value.trim();
-      const p = document.getElementById('m-pass').value;
-      if(!e || !p || p.length < 6){ alert('Provide email and password (min 6).'); return; }
-      try{
-        await createUserWithEmailAndPassword(auth, e, p);
-        closeModal();
-      }catch(err){ alert('Register error: ' + (err.message || err)); }
-    });
-
+    document.getElementById('m-create').addEventListener('click', async ()=>{ const e=document.getElementById('m-email').value.trim(); const p=document.getElementById('m-pass').value; if(!e||!p||p.length<6){ alert('Provide email and password (min 6).'); return; } try{ await createUserWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert('Register error: ' + (err.message || err)); }});
   } else {
-    modal.innerHTML = `
-      <h3>Login</h3>
-      <div style="margin-top:8px">
-        <input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-        <div style="height:8px"></div>
-        <input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/>
-      </div>
-      <div style="display:flex;gap:8px;margin-top:12px">
-        <button id="m-login" class="btn">Login</button>
-        <button id="m-cancel" class="btn ghost">Cancel</button>
-      </div>
-    `;
-    backdrop.addEventListener('click', () => closeModal());
-    document.body.appendChild(backdrop);
-    document.body.appendChild(modal);
-
+    modal.innerHTML = `<h3>Login</h3><div style="margin-top:8px"><input id="m-email" type="email" placeholder="Email" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/><div style="height:8px"></div><input id="m-pass" type="password" placeholder="Password" style="width:100%;padding:8px;border-radius:8px;border:1px solid var(--glass)"/></div><div style="display:flex;gap:8px;margin-top:12px"><button id="m-login" class="btn">Login</button><button id="m-cancel" class="btn ghost">Cancel</button></div>`;
+    backdrop.addEventListener('click', closeModal);
+    document.body.appendChild(backdrop); document.body.appendChild(modal);
     document.getElementById('m-cancel').addEventListener('click', closeModal);
-    document.getElementById('m-login').addEventListener('click', async () => {
-      const e = document.getElementById('m-email').value.trim();
-      const p = document.getElementById('m-pass').value;
-      if(!e || !p){ alert('Provide email & password.'); return; }
-      try{
-        await signInWithEmailAndPassword(auth, e, p);
-        closeModal();
-      }catch(err){ alert('Login error: ' + (err.message || err)); }
-    });
+    document.getElementById('m-login').addEventListener('click', async ()=>{ const e=document.getElementById('m-email').value.trim(); const p=document.getElementById('m-pass').value; if(!e||!p){ alert('Provide email & password.'); return; } try{ await signInWithEmailAndPassword(auth,e,p); closeModal(); }catch(err){ alert('Login error: ' + (err.message || err)); }});
   }
 
-  function closeModal(){
-    if(modal.parentNode) modal.remove();
-    if(backdrop.parentNode) backdrop.remove();
-  }
+  function closeModal(){ if(modal.parentNode) modal.remove(); if(backdrop.parentNode) backdrop.remove(); }
 }
 
-/* ---------- rendering tasks UI (compact horizontal 32x32 buttons) ---------- */
+/* ---------- CSV parsing utility (handles quoted fields) ---------- */
+function parseCSV(text){
+  // basic RFC4180-ish parser: returns array of rows, each row is array of cells
+  const rows = [];
+  let i = 0;
+  const len = text.length;
+  let row = [];
+  let cell = '';
+  let inQuotes = false;
+  while(i < len){
+    const ch = text[i];
+    if(inQuotes){
+      if(ch === '"'){
+        if(text[i+1] === '"'){ cell += '"'; i += 2; continue; } // escaped quote
+        else { inQuotes = false; i++; continue; }
+      } else { cell += ch; i++; continue; }
+    } else {
+      if(ch === '"'){ inQuotes = true; i++; continue; }
+      if(ch === ','){ row.push(cell); cell = ''; i++; continue; }
+      if(ch === '\r'){ // skip CR
+        i++; continue;
+      }
+      if(ch === '\n'){ row.push(cell); rows.push(row); row = []; cell = ''; i++; continue; }
+      cell += ch; i++;
+    }
+  }
+  // end
+  if(inQuotes){
+    // malformed, but push what we have
+    row.push(cell);
+    rows.push(row);
+  } else {
+    if(cell !== '' || row.length > 0){ row.push(cell); rows.push(row); }
+  }
+  return rows;
+}
+
+/* ---------- CSV import logic ---------- */
+async function handleImportFile(file){
+  if(!file) return;
+  const text = await file.text();
+  if(!text || !text.trim()){ alert('Empty file.'); return; }
+  const rows = parseCSV(text);
+  if(!rows || rows.length === 0){ alert('No rows found in CSV.'); return; }
+
+  // decide whether the first row is a header
+  const firstRow = rows[0].map(c => String(c||'').toLowerCase());
+  const hasHeader = firstRow.some(c => c.includes('task') || c.includes('task name') || c.includes('session start') || c.includes('start'));
+  // We'll treat the first column as Task Name
+  const startIndex = hasHeader ? 1 : 0;
+
+  // collect names and deduplicate
+  const names = [];
+  for(let r = startIndex; r < rows.length; r++){
+    const row = rows[r];
+    if(!row || row.length === 0) continue;
+    const rawName = String(row[0] || '').trim();
+    if(!rawName) continue;
+    names.push(rawName);
+  }
+
+  if(names.length === 0){
+    alert('No task names detected in the first column.');
+    return;
+  }
+
+  // Add tasks, skipping existing names for the loaded date
+  const existingNames = new Set((data.tasks || []).map(t => (t.name || '').toLowerCase()));
+  let added = 0, skipped = 0;
+  for(const nm of names){
+    const lower = nm.toLowerCase();
+    if(existingNames.has(lower)){ skipped++; continue; }
+    const newTask = { id: uid('task'), name: nm, sessions: [], createdAt: new Date().toISOString() };
+    data.tasks.push(newTask);
+    existingNames.add(lower);
+    added++;
+  }
+
+  await saveData();
+  render();
+
+  alert(`Import complete — added ${added} task(s). Skipped ${skipped} duplicate(s).`);
+}
+
+/* ---------- rendering tasks ---------- */
 function render(){
   const iso = isoDate(currentDate);
   taskListEl.innerHTML = '';
   data.tasks = data.tasks || [];
   data.tasks.sort((a,b)=> (a.createdAt||'').localeCompare(b.createdAt||''));
   for(const t of data.tasks){
-    const card = document.createElement('article');
-    card.className = 'task-card';
-    card.dataset.id = t.id;
+    const card = document.createElement('article'); card.className = 'task-card'; card.dataset.id = t.id;
 
     const left = document.createElement('div'); left.className = 'task-left';
     const titleRow = document.createElement('div'); titleRow.style.display='flex'; titleRow.style.alignItems='center'; titleRow.style.gap='8px';
     const running = hasRunningSession(t);
-    if(running){
-      const dot = document.createElement('span'); dot.className = 'running-dot'; titleRow.appendChild(dot);
-    }
+    if(running){ const dot = document.createElement('span'); dot.className = 'running-dot'; titleRow.appendChild(dot); }
     const titleText = document.createElement('div'); titleText.contentEditable = true; titleText.spellcheck = false; titleText.innerText = t.name || 'Untitled task';
-    titleText.style.outline = 'none';
-    titleText.style.fontWeight = '700';
-    titleText.style.fontSize = '18px';
+    titleText.style.outline = 'none'; titleText.style.fontWeight = '700'; titleText.style.fontSize = '18px';
     titleText.addEventListener('blur', ()=> { t.name = titleText.innerText.trim() || 'Untitled task'; saveData(); });
     titleText.addEventListener('keydown', (ev)=> { if(ev.key === 'Enter'){ ev.preventDefault(); titleText.blur(); }});
     titleRow.appendChild(titleText);
@@ -456,51 +415,23 @@ function render(){
 
     const right = document.createElement('div'); right.className = 'task-right';
 
-    // START button (32x32) with SVG play icon
-    const btnStart = document.createElement('button');
-    btnStart.className = 'action-btn start';
-    btnStart.setAttribute('aria-label','Start');
-    btnStart.title = 'Start';
-    btnStart.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M5 3v18l15-9L5 3z" fill="white"/>
-    </svg>`;
+    const btnStart = document.createElement('button'); btnStart.className = 'action-btn start'; btnStart.setAttribute('aria-label','Start'); btnStart.title = 'Start';
+    btnStart.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M5 3v18l15-9L5 3z" fill="white"/></svg>`;
     btnStart.addEventListener('click', async (e) => { e.stopPropagation(); if(hasRunningSession(t)){ alert('Task already running'); return; } await startSession(t); });
 
-    // END button (32x32) with square icon
-    const btnEnd = document.createElement('button');
-    btnEnd.className = 'action-btn end';
-    btnEnd.setAttribute('aria-label','End');
-    btnEnd.title = 'End';
-    btnEnd.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <rect x="5" y="5" width="14" height="14" fill="white"/>
-    </svg>`;
+    const btnEnd = document.createElement('button'); btnEnd.className = 'action-btn end'; btnEnd.setAttribute('aria-label','End'); btnEnd.title = 'End';
+    btnEnd.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><rect x="5" y="5" width="14" height="14" fill="white"/></svg>`;
     btnEnd.addEventListener('click', async (e) => { e.stopPropagation(); if(!hasRunningSession(t)){ alert('No running session to end'); return; } await endSession(t); });
 
-    // DELETE button (32x32) with X icon
-    const btnDel = document.createElement('button');
-    btnDel.className = 'action-btn del';
-    btnDel.setAttribute('aria-label','Delete');
-    btnDel.title = 'Delete';
-    btnDel.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true">
-      <path d="M6 6L18 18M6 18L18 6" stroke="#4c5055" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/>
-    </svg>`;
+    const btnDel = document.createElement('button'); btnDel.className = 'action-btn del'; btnDel.setAttribute('aria-label','Delete'); btnDel.title = 'Delete';
+    btnDel.innerHTML = `<svg class="action-icon" viewBox="0 0 24 24" fill="none" xmlns="http://www.w3.org/2000/svg" aria-hidden="true"><path d="M6 6L18 18M6 18L18 6" stroke="#4c5055" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"/></svg>`;
     btnDel.addEventListener('click', async (e) => { e.stopPropagation(); if(confirm('Delete this task and its sessions?')){ data.tasks = data.tasks.filter(x=>x.id !== t.id); await saveData(); render(); } });
 
-    // enable/disable based on running state
-    if(hasRunningSession(t)){
-      btnStart.disabled = true;
-      btnEnd.disabled = false;
-    } else {
-      btnStart.disabled = false;
-      btnEnd.disabled = true;
-    }
+    if(hasRunningSession(t)){ btnStart.disabled = true; btnEnd.disabled = false; } else { btnStart.disabled = false; btnEnd.disabled = true; }
 
-    right.appendChild(btnStart);
-    right.appendChild(btnEnd);
-    right.appendChild(btnDel);
+    right.appendChild(btnStart); right.appendChild(btnEnd); right.appendChild(btnDel);
 
-    card.appendChild(left);
-    card.appendChild(right);
+    card.appendChild(left); card.appendChild(right);
     taskListEl.appendChild(card);
   }
 
@@ -509,7 +440,7 @@ function render(){
   totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
 }
 
-/* ---------- session helpers ---------- */
+/* last session helper */
 function lastSessionTimesText(task, dayIso){
   const iso = dayIso || isoDate(currentDate);
   const sessions = (task.sessions || []).slice().reverse();
@@ -529,6 +460,7 @@ function lastSessionTimesText(task, dayIso){
 }
 function hasRunningSession(task){ return (task.sessions||[]).some(s => s.start && !s.end); }
 
+/* start/end session logic (handles midnight splitting) */
 async function startSession(task){
   if(hasRunningSession(task)){ alert('This task already has a running session. End it first.'); return; }
   const s = { start: nowISO(), end: null };
@@ -566,16 +498,11 @@ async function endSession(task){
   render();
 }
 
-/* ---------- add task & live updates ---------- */
+/* add task and live timer */
 async function addTask(name){
   const trimmed = (name || '').trim();
   if(!trimmed) return;
-  const newTask = {
-    id: uid('task'),
-    name: trimmed,
-    sessions: [],
-    createdAt: new Date().toISOString()
-  };
+  const newTask = { id: uid('task'), name: trimmed, sessions: [], createdAt: new Date().toISOString() };
   data.tasks.push(newTask);
   await saveData();
   render();
@@ -585,9 +512,7 @@ async function addTask(name){
 
 function startLiveTimer(){
   if(liveTimerInterval) clearInterval(liveTimerInterval);
-  liveTimerInterval = setInterval(()=> {
-    updateLiveDisplays();
-  }, 1000);
+  liveTimerInterval = setInterval(()=> updateLiveDisplays(), 1000);
 }
 function updateLiveDisplays(){
   const iso = isoDate(currentDate);
@@ -599,8 +524,7 @@ function updateLiveDisplays(){
     const dur = durationSecondsForSessions(t.sessions || [], iso);
     meta.innerText = `${lastSessionTimesText(t, iso)} • ${secondsToHHMMSS(dur)} • ${percentOfDaySeconds(dur).toFixed(2)}%`;
     const prog = card.querySelector('.progress > i');
-    if(prog) { prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%'; }
-    // update action btn state
+    if(prog) prog.style.width = Math.min(100, percentOfDaySeconds(dur)) + '%';
     const btns = card.querySelectorAll('.action-btn');
     if(btns && btns.length >= 2){
       const running = hasRunningSession(t);
@@ -613,74 +537,42 @@ function updateLiveDisplays(){
   totalPercentEl.textContent = percentOfDaySeconds(totalSec).toFixed(2) + '% of 24 hours';
 }
 
-/* ---------- CSV export & clear (drawer) ---------- */
+/* export CSV (existing behavior) */
 function exportCsvForDate(dateIso){
   const header = ['Task Name','Session Start (ISO)','Session End (ISO)','Duration (seconds)','Duration (HH:MM:SS)','Percent of 24h'];
   const rows = [header];
-  const dayData = data;
-  for(const t of dayData.tasks){
-    const sessions = t.sessions || [];
-    for(const s of sessions){
-      const start = s.start || '';
-      const end = s.end || '';
+  for(const t of data.tasks){
+    for(const s of (t.sessions||[])){
       const dur = durationSecondsForSessions([s], dateIso);
       if(dur <= 0) continue;
-      rows.push([t.name, start, end, String(Math.round(dur)), secondsToHHMMSS(dur), percentOfDaySeconds(dur).toFixed(4) + '%']);
+      rows.push([t.name, s.start||'', s.end||'', String(Math.round(dur)), secondsToHHMMSS(dur), percentOfDaySeconds(dur).toFixed(4)+'%']);
     }
   }
   const csv = rows.map(r => r.map(cell => `"${String(cell).replace(/"/g,'""')}"`).join(',')).join('\n');
-  const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
-  const url = URL.createObjectURL(blob);
-  const a = document.createElement('a');
-  a.href = url;
-  a.download = `dnt_${currentUser?currentUser.uid:'guest'}_${dateIso}.csv`;
-  a.click();
-  URL.revokeObjectURL(url);
+  const blob = new Blob([csv], { type:'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob); const a=document.createElement('a'); a.href=url; a.download=`dnt_${currentUser?currentUser.uid:'guest'}_${dateIso}.csv`; a.click(); URL.revokeObjectURL(url);
 }
 
-async function clearDay(dateIso){
-  if(!confirm('Clear all tasks & sessions for this day? This cannot be undone.')) return;
-  data = { date: dateIso, tasks: [] };
-  await saveData();
-  render();
-}
+/* clear day */
+async function clearDay(dateIso){ if(!confirm('Clear all tasks & sessions for this day?')) return; data={date:dateIso,tasks:[]}; await saveData(); render(); }
 
-/* ---------- navigation ---------- */
-async function shiftDays(delta){
-  const d = new Date(currentDate);
-  d.setDate(d.getDate() + delta);
-  await loadDate(d);
-}
-async function jumpToToday(){
-  await loadDate(new Date());
-}
+/* navigation */
+async function shiftDays(delta){ const d = new Date(currentDate); d.setDate(d.getDate() + delta); await loadDate(d); }
+async function jumpToToday(){ await loadDate(new Date()); }
 
-/* ---------- persistence: read/write local + remote ---------- */
-async function saveData(){
-  writeLocal(data);
-  if(currentUser){
-    await writeRemoteDay(currentUser.uid, data);
-  }
-}
+/* persistence */
+async function saveData(){ writeLocal(data); if(currentUser) await writeRemoteDay(currentUser.uid, data); }
 async function loadDate(d){
   currentDate = new Date(d);
   const iso = isoDate(currentDate);
   dateDisplay.textContent = new Date(currentDate).toLocaleDateString(undefined, { weekday: 'short', month:'short', day:'numeric', year:'numeric' });
   if(currentUser){
     const remote = await readRemoteDay(currentUser.uid, iso);
-    if(remote){
-      data = remote;
-      writeLocal(data);
-    } else {
-      data = readLocal(iso);
-      await writeRemoteDay(currentUser.uid, data);
-    }
+    if(remote){ data = remote; writeLocal(data); } else { data = readLocal(iso); await writeRemoteDay(currentUser.uid, data); }
   } else {
     data = readLocal(iso);
   }
-  render();
-  startLiveTimer();
-  renderAuthControls();
+  render(); startLiveTimer(); renderAuthControls();
 }
 
 /* ---------- events ---------- */
@@ -701,23 +593,37 @@ drawerNext.addEventListener('click', ()=> { shiftDays(1); closeDrawer(); });
 drawerExport.addEventListener('click', ()=> { exportCsvForDate(isoDate(currentDate)); closeDrawer(); });
 drawerClear.addEventListener('click', ()=> { clearDay(isoDate(currentDate)); closeDrawer(); });
 
+/* Import CSV: open file picker when clicking button */
+drawerImport.addEventListener('click', ()=> { importFileInput.value = ''; importFileInput.click(); });
+
+/* handle file selection */
+importFileInput.addEventListener('change', async (ev) => {
+  const f = ev.target.files && ev.target.files[0];
+  if(!f) return;
+  // confirm intent
+  const proceed = confirm(`Import tasks from "${f.name}" into ${isoDate(currentDate)}? Existing task names will be skipped.`);
+  if(!proceed) return;
+  try{
+    await handleImportFile(f);
+  }catch(err){
+    console.error('Import error', err);
+    alert('Import failed: ' + (err.message || err));
+  } finally {
+    closeDrawer();
+  }
+});
+
+/* drawer open/close helpers */
 function openDrawer(){ drawerBackdrop.style.display='block'; drawerBackdrop.setAttribute('aria-hidden','false'); setTimeout(()=> drawer.classList.add('open'), 10); }
 function closeDrawer(){ drawer.classList.remove('open'); drawerBackdrop.setAttribute('aria-hidden','true'); setTimeout(()=> drawerBackdrop.style.display='none', 240); }
 
-/* ---------- auth state listener: sync on sign-in ---------- */
+/* auth state listener */
 onAuthStateChanged(auth, async (user) => {
   if(user){
     currentUser = user;
     const iso = isoDate(currentDate);
     const remote = await readRemoteDay(currentUser.uid, iso);
-    if(remote){
-      data = remote;
-      writeLocal(data);
-    } else {
-      data = readLocal(iso);
-      data = data || { date: iso, tasks: [] };
-      await writeRemoteDay(currentUser.uid, data);
-    }
+    if(remote){ data = remote; writeLocal(data); } else { data = readLocal(iso); await writeRemoteDay(currentUser.uid, data); }
   } else {
     currentUser = null;
     data = readLocal(isoDate(currentDate));
@@ -726,11 +632,9 @@ onAuthStateChanged(auth, async (user) => {
   await loadDate(currentDate);
 });
 
-/* ---------- init ---------- */
-(async function init(){
-  renderAuthControls();
-  await loadDate(new Date());
-})();
+/* init */
+(async function init(){ renderAuthControls(); await loadDate(new Date()); })();
+
 </script>
 </body>
 </html>
